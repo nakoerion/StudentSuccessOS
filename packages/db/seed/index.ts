@@ -130,7 +130,7 @@ async function seedTenant(tx: Tx, f: TenantFixture, roleIds: Record<SystemRoleKe
 
   await tx.tenantSetting.createMany({
     data: [
-      { id: seedId(f.slug, "setting", "grading_scale"), tenantId, key: "grading_scale", value: packData.gradingScales[0]?.key ?? null },
+      { id: seedId(f.slug, "setting", "grading_scale"), tenantId, key: "grading_scale", value: packData.gradingScales[0]?.key ?? "" },
       { id: seedId(f.slug, "setting", "supported_locales"), tenantId, key: "supported_locales", value: packData.supportedLocales },
     ],
   });
