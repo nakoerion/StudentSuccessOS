@@ -1,0 +1,134 @@
+{
+  "meta": {
+    "title": "Student Success OS",
+    "description": "School roster, roles and families in one place."
+  },
+  "common": {
+    "appName": "Student Success OS",
+    "signOut": "Sign out",
+    "language": "Language",
+    "theme": {
+      "toggle": "Toggle theme",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "localeNames": {
+      "sq": "Shqip",
+      "en": "English",
+      "ar": "العربية"
+    },
+    "signedInAs": "Signed in as {email}",
+    "back": "Back"
+  },
+  "roles": {
+    "student": "Student",
+    "parent": "Parent",
+    "teacher": "Teacher",
+    "advisor": "Advisor",
+    "trainer": "Trainer",
+    "admin": "Admin"
+  },
+  "relationship": {
+    "mother": "Mother",
+    "father": "Father",
+    "guardian": "Guardian"
+  },
+  "signIn": {
+    "title": "Welcome back",
+    "subtitle": "Sign in with your school account.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "invalid": "That email and password don't match. Please try again.",
+    "tagline": "One place for your school's students, staff and families.",
+    "demoTitle": "Demo accounts",
+    "demoPassword": "Password for every demo account: {password}"
+  },
+  "join": {
+    "title": "Join your school",
+    "subtitle": "Your account isn't linked to a school yet. Enter the join code or invitation code your school gave you.",
+    "codeLabel": "School or invitation code",
+    "codePlaceholder": "e.g. TIR-4821",
+    "continue": "Continue",
+    "invalidCode": "We couldn't find that code. Check it and try again.",
+    "codeUsed": "This invitation has already been used or has expired.",
+    "invalidRole": "Please choose one of the roles below.",
+    "chooseTitle": "Joining {school}",
+    "chooseSubtitle": "How are you connected to the school? The school will confirm your request.",
+    "roleHint": {
+      "student": "I study at this school.",
+      "parent": "My child studies at this school.",
+      "teacher": "I teach at this school."
+    },
+    "request": "Request access",
+    "differentCode": "Use a different code",
+    "pendingTitle": "Waiting for approval",
+    "pendingBody": "Your request to join {school} as {role} has been sent. A school administrator will review it soon.",
+    "pendingNext": "You'll get access as soon as it's approved. You can sign out and come back later.",
+    "joinAnother": "Join another school"
+  },
+  "schools": {
+    "title": "Choose a school",
+    "subtitle": "Your account belongs to more than one school.",
+    "open": "Open"
+  },
+  "nav": {
+    "dashboard": "Overview",
+    "people": "People",
+    "switchSchool": "Switch school"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {name}",
+    "subtitle": "Here's an overview of {school}.",
+    "cards": {
+      "students": "Students",
+      "teachers": "Teachers",
+      "parents": "Parents",
+      "classes": "Classes"
+    },
+    "cardHint": {
+      "students": "Enrolled this year",
+      "teachers": "Teaching staff",
+      "parents": "Linked to students",
+      "classes": "Active classes"
+    },
+    "viewRoster": "View people",
+    "pendingClaims": "{count, plural, =0 {No requests awaiting approval} one {# request awaiting approval} other {# requests awaiting approval}}",
+    "myChildren": "My children",
+    "myChildrenSubtitle": "Students linked to your account.",
+    "noChildren": "No students are linked to your account yet.",
+    "noAccess": "Your role doesn't include access to the school roster yet."
+  },
+  "people": {
+    "title": "People",
+    "subtitle": "Students, teachers and parents at {school}.",
+    "parentSubtitle": "You can see the students linked to your account.",
+    "tabs": {
+      "all": "All",
+      "student": "Students",
+      "teacher": "Teachers",
+      "parent": "Parents"
+    },
+    "searchPlaceholder": "Search by name or ID…",
+    "searchLabel": "Search people",
+    "search": "Search",
+    "clear": "Clear",
+    "columns": {
+      "name": "Name",
+      "role": "Role",
+      "class": "Class",
+      "guardians": "Guardians",
+      "children": "Children",
+      "id": "ID"
+    },
+    "count": "{count, plural, =0 {No people} one {# person} other {# people}}",
+    "empty": "No one matches your search.",
+    "none": "—"
+  },
+  "errors": {
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "This page doesn't exist, or you don't have access to it.",
+    "home": "Go to my school"
+  }
+}

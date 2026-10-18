@@ -21,6 +21,8 @@ export interface TenantFixture {
 export const COUNTS = { students: 30, teachers: 6, parents: 20, advisors: 1, admins: 1 } as const;
 
 export const DEMO_EMAIL_DOMAIN = "demo.ssos.test";
+/** Password for every seeded demo login (local/demo data only). */
+export const DEMO_PASSWORD = "Demo1234!";
 export const NO_ROLE_EMAIL = `join@${DEMO_EMAIL_DOMAIN}`;
 
 export const TENANTS: readonly TenantFixture[] = [

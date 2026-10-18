@@ -8,8 +8,8 @@
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint",
-    "test": "turbo run test",
+    "lint": "turbo run lint --concurrency=1",
+    "test": "turbo run test --concurrency=1",
     "db:up": "bash scripts/db-up.sh",
     "db:generate": "pnpm --filter @ssos/db db:generate",
     "db:migrate": "pnpm --filter @ssos/db db:migrate",

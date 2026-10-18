@@ -1,0 +1,134 @@
+{
+  "meta": {
+    "title": "Student Success OS",
+    "description": "Nxënësit, stafi dhe familjet e shkollës në një vend."
+  },
+  "common": {
+    "appName": "Student Success OS",
+    "signOut": "Dil",
+    "language": "Gjuha",
+    "theme": {
+      "toggle": "Ndrysho temën",
+      "light": "E çelët",
+      "dark": "E errët"
+    },
+    "localeNames": {
+      "sq": "Shqip",
+      "en": "English",
+      "ar": "العربية"
+    },
+    "signedInAs": "Jeni identifikuar si {email}",
+    "back": "Kthehu"
+  },
+  "roles": {
+    "student": "Nxënës",
+    "parent": "Prind",
+    "teacher": "Mësues",
+    "advisor": "Këshilltar",
+    "trainer": "Trajner",
+    "admin": "Administrator"
+  },
+  "relationship": {
+    "mother": "Nëna",
+    "father": "Babai",
+    "guardian": "Kujdestari"
+  },
+  "signIn": {
+    "title": "Mirë se vini",
+    "subtitle": "Hyni me llogarinë tuaj të shkollës.",
+    "email": "Email-i",
+    "password": "Fjalëkalimi",
+    "submit": "Hyr",
+    "submitting": "Duke hyrë…",
+    "invalid": "Email-i ose fjalëkalimi nuk është i saktë. Provoni sërish.",
+    "tagline": "Nxënësit, stafi dhe familjet e shkollës suaj, të gjitha në një vend.",
+    "demoTitle": "Llogari demo",
+    "demoPassword": "Fjalëkalimi për çdo llogari demo: {password}"
+  },
+  "join": {
+    "title": "Bashkohuni me shkollën tuaj",
+    "subtitle": "Llogaria juaj nuk është ende e lidhur me ndonjë shkollë. Shkruani kodin e shkollës ose kodin e ftesës që ju ka dhënë shkolla.",
+    "codeLabel": "Kodi i shkollës ose i ftesës",
+    "codePlaceholder": "p.sh. TIR-4821",
+    "continue": "Vazhdo",
+    "invalidCode": "Nuk e gjetëm këtë kod. Kontrollojeni dhe provoni sërish.",
+    "codeUsed": "Kjo ftesë është përdorur tashmë ose ka skaduar.",
+    "invalidRole": "Ju lutemi zgjidhni një nga rolet më poshtë.",
+    "chooseTitle": "Po bashkoheni me {school}",
+    "chooseSubtitle": "Si jeni të lidhur me shkollën? Shkolla do ta konfirmojë kërkesën tuaj.",
+    "roleHint": {
+      "student": "Unë mësoj në këtë shkollë.",
+      "parent": "Fëmija im mëson në këtë shkollë.",
+      "teacher": "Unë jap mësim në këtë shkollë."
+    },
+    "request": "Dërgo kërkesën",
+    "differentCode": "Përdor një kod tjetër",
+    "pendingTitle": "Në pritje të miratimit",
+    "pendingBody": "Kërkesa juaj për t'u bashkuar me {school} si {role} u dërgua. Një administrator i shkollës do ta shqyrtojë së shpejti.",
+    "pendingNext": "Do të keni qasje sapo të miratohet. Mund të dilni dhe të ktheheni më vonë.",
+    "joinAnother": "Bashkohuni me një shkollë tjetër"
+  },
+  "schools": {
+    "title": "Zgjidhni shkollën",
+    "subtitle": "Llogaria juaj është e lidhur me më shumë se një shkollë.",
+    "open": "Hap"
+  },
+  "nav": {
+    "dashboard": "Përmbledhje",
+    "people": "Njerëzit",
+    "switchSchool": "Ndrysho shkollën"
+  },
+  "dashboard": {
+    "welcome": "Mirë se vini, {name}",
+    "subtitle": "Një përmbledhje e {school}.",
+    "cards": {
+      "students": "Nxënës",
+      "teachers": "Mësues",
+      "parents": "Prindër",
+      "classes": "Klasa"
+    },
+    "cardHint": {
+      "students": "Të regjistruar këtë vit",
+      "teachers": "Stafi mësimor",
+      "parents": "Të lidhur me nxënësit",
+      "classes": "Klasa aktive"
+    },
+    "viewRoster": "Shiko njerëzit",
+    "pendingClaims": "{count, plural, =0 {Asnjë kërkesë në pritje të miratimit} one {# kërkesë në pritje të miratimit} other {# kërkesa në pritje të miratimit}}",
+    "myChildren": "Fëmijët e mi",
+    "myChildrenSubtitle": "Nxënësit e lidhur me llogarinë tuaj.",
+    "noChildren": "Ende nuk ka nxënës të lidhur me llogarinë tuaj.",
+    "noAccess": "Roli juaj ende nuk ka qasje te regjistri i shkollës."
+  },
+  "people": {
+    "title": "Njerëzit",
+    "subtitle": "Nxënësit, mësuesit dhe prindërit e {school}.",
+    "parentSubtitle": "Shihni nxënësit që janë të lidhur me llogarinë tuaj.",
+    "tabs": {
+      "all": "Të gjithë",
+      "student": "Nxënës",
+      "teacher": "Mësues",
+      "parent": "Prindër"
+    },
+    "searchPlaceholder": "Kërkoni me emër ose ID…",
+    "searchLabel": "Kërkoni njerëz",
+    "search": "Kërko",
+    "clear": "Pastro",
+    "columns": {
+      "name": "Emri",
+      "role": "Roli",
+      "class": "Klasa",
+      "guardians": "Prindërit / kujdestarët",
+      "children": "Fëmijët",
+      "id": "ID"
+    },
+    "count": "{count, plural, =0 {Asnjë person} one {# person} other {# persona}}",
+    "empty": "Askush nuk përputhet me kërkimin tuaj.",
+    "none": "—"
+  },
+  "errors": {
+    "notFoundTitle": "Faqja nuk u gjet",
+    "notFoundBody": "Kjo faqe nuk ekziston ose nuk keni qasje në të.",
+    "home": "Shko te shkolla ime"
+  }
+}

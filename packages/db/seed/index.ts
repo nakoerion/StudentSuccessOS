@@ -7,11 +7,12 @@
  */
 import { getCountryPack } from "@ssos/country-packs";
 import type { Prisma, PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 import { createAdminClient } from "../src/client";
 import { PERMISSIONS, ROLE_PERMISSIONS, SYSTEM_ROLES, type SystemRoleKey } from "../src/system-roles";
 import { pick, prng, seedId, seedToken } from "./deterministic";
-import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture } from "./fixtures";
+import { COUNTS, DEMO_EMAIL_DOMAIN, DEMO_PASSWORD, NO_ROLE_EMAIL, TENANTS, type TenantFixture } from "./fixtures";
 import type { NamePool } from "./names";
 
 type Tx = Prisma.TransactionClient;
@@ -108,7 +109,12 @@ function dob(rand: () => number, ageYears: number): Date {
   return new Date(Date.UTC(year, month, day));
 }
 
-async function seedTenant(tx: Tx, f: TenantFixture, roleIds: Record<SystemRoleKey, string>) {
+async function seedTenant(
+  tx: Tx,
+  f: TenantFixture,
+  roleIds: Record<SystemRoleKey, string>,
+  passwordHash: string,
+) {
   const rand = prng(f.slug);
   const tenantId = seedId("tenant", f.slug);
   const pack = await tx.countryPack.findUniqueOrThrow({ where: { code: f.countryCode } });
@@ -258,8 +264,14 @@ async function seedTenant(tx: Tx, f: TenantFixture, roleIds: Record<SystemRoleKe
     const email = `${kind}.${f.emailTag}@${DEMO_EMAIL_DOMAIN}`;
     const account = await tx.userAccount.upsert({
       where: { email },
-      create: { id: seedId("user_account", email), email, displayName: person.displayName, locale: f.defaultLocale },
-      update: { displayName: person.displayName, locale: f.defaultLocale },
+      create: {
+        id: seedId("user_account", email),
+        email,
+        displayName: person.displayName,
+        locale: f.defaultLocale,
+        passwordHash,
+      },
+      update: { displayName: person.displayName, locale: f.defaultLocale, passwordHash },
     });
     await tx.person.update({ where: { id: person.id }, data: { userAccountId: account.id } });
   }
@@ -294,19 +306,27 @@ async function seedTenant(tx: Tx, f: TenantFixture, roleIds: Record<SystemRoleKe
 }
 
 export async function seed(client: PrismaClient): Promise<void> {
+  // One bcrypt hash (cost 10) of the shared demo password for every demo login.
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   await client.$transaction(
     async (tx) => {
       const roleIds = await seedGlobals(tx);
       for (const f of TENANTS) {
-        const r = await seedTenant(tx, f, roleIds);
+        const r = await seedTenant(tx, f, roleIds, passwordHash);
         console.info(
           `Seeded ${f.name} (${r.tenantId}): ${r.persons} persons, ${r.assignments} role assignments, ${r.guardianships} guardianships`,
         );
       }
       await tx.userAccount.upsert({
         where: { email: NO_ROLE_EMAIL },
-        create: { id: seedId("user_account", NO_ROLE_EMAIL), email: NO_ROLE_EMAIL, displayName: "New User", locale: "en" },
-        update: {},
+        create: {
+          id: seedId("user_account", NO_ROLE_EMAIL),
+          email: NO_ROLE_EMAIL,
+          displayName: "New User",
+          locale: "en",
+          passwordHash,
+        },
+        update: { passwordHash },
       });
     },
     { timeout: 120_000 },
