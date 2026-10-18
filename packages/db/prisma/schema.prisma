@@ -1,0 +1,385 @@
+// Student Success OS — core schema (Slice 1).
+//
+// Conventions
+// - UUID primary keys generated in Postgres (gen_random_uuid()).
+// - created_at / updated_at on every table.
+// - Every tenant-owned table has `tenant_id uuid` with an FK to tenant and an
+//   index, and is protected by row-level security generated from ONE template
+//   in rls/generate.ts (see rls/tables.ts for the list).
+// - "Shared" tables (role, role_permission, grade_scale) have a NULLABLE
+//   tenant_id: NULL means a global/system row visible to every tenant,
+//   non-NULL means a tenant-defined row visible only to that tenant.
+// - Global tables (no tenant_id): tenant, country_pack, permission,
+//   user_account (auth identity; a person in a tenant links to it).
+// - References between tenant-owned rows use composite FKs
+//   (tenant_id, x_id) -> x(tenant_id, id) so a row can never point at another
+//   tenant's data, even though FK checks bypass RLS.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Runtime: ssos_app (NOSUPERUSER, NOBYPASSRLS).
+  url       = env("DATABASE_URL")
+  // Migrations: ssos_owner (schema owner, BYPASSRLS).
+  directUrl = env("DATABASE_ADMIN_URL")
+}
+
+// ─── Global tables ───────────────────────────────────────────────────────────
+
+model CountryPack {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String   @unique @db.VarChar(2)
+  name      String
+  version   String
+  /// Full pack payload from @ssos/country-packs.
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenants     Tenant[]
+  gradeScales GradeScale[]
+
+  @@map("country_pack")
+}
+
+model Tenant {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String   @unique
+  name          String
+  countryPackId String   @map("country_pack_id") @db.Uuid
+  defaultLocale String   @map("default_locale") @db.VarChar(8)
+  timezone      String
+  /// Short code a user types on "Join your school".
+  joinCode      String   @unique @map("join_code")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  countryPack     CountryPack      @relation(fields: [countryPackId], references: [id], onDelete: Restrict)
+  units           TenantUnit[]
+  settings        TenantSetting[]
+  gradeScales     GradeScale[]
+  persons         Person[]
+  roles           Role[]
+  rolePermissions RolePermission[]
+  roleAssignments RoleAssignment[]
+  guardianships   Guardianship[]
+  consents        Consent[]
+  invitations     Invitation[]
+  rosterImports   RosterImport[]
+  auditLogs       AuditLog[]
+
+  @@index([countryPackId])
+  @@map("tenant")
+}
+
+model Permission {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// e.g. "roster.read", "roster.write".
+  key         String   @unique
+  description String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rolePermissions RolePermission[]
+
+  @@map("permission")
+}
+
+model UserAccount {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email          String    @unique
+  /// Subject id from the auth provider (decided in Slice 2).
+  externalAuthId String?   @unique @map("external_auth_id")
+  displayName    String?   @map("display_name")
+  locale         String?   @db.VarChar(8)
+  lastSignInAt   DateTime? @map("last_sign_in_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  persons Person[]
+
+  @@map("user_account")
+}
+
+// ─── Shared tables (tenant_id NULL = system/global row) ─────────────────────
+
+model GradeScale {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// NULL = the country pack's default scale; otherwise a tenant override.
+  tenantId      String?  @map("tenant_id") @db.Uuid
+  countryPackId String   @map("country_pack_id") @db.Uuid
+  key           String
+  name          String
+  kind          String
+  minValue      Decimal  @map("min_value") @db.Decimal(6, 2)
+  maxValue      Decimal  @map("max_value") @db.Decimal(6, 2)
+  passMark      Decimal  @map("pass_mark") @db.Decimal(6, 2)
+  bands         Json
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  countryPack CountryPack @relation(fields: [countryPackId], references: [id], onDelete: Restrict)
+
+  @@unique([countryPackId, tenantId, key])
+  @@index([tenantId])
+  @@map("grade_scale")
+}
+
+model Role {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// NULL = system role (Student, Parent, Teacher, Advisor, Trainer, Admin).
+  tenantId    String?  @map("tenant_id") @db.Uuid
+  key         String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant          Tenant?          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+  assignments     RoleAssignment[]
+  invitations     Invitation[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("role")
+}
+
+model RolePermission {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// NULL for system role grants; tenant id for grants on tenant-defined roles.
+  tenantId     String?  @map("tenant_id") @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([tenantId])
+  @@index([permissionId])
+  @@map("role_permission")
+}
+
+// ─── Tenant-owned tables (tenant_id NOT NULL) ────────────────────────────────
+
+model TenantUnit {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  parentId   String?  @map("parent_id") @db.Uuid
+  /// "campus" | "grade" | "class" | ... (free-form for now).
+  kind       String
+  name       String
+  code       String
+  gradeLevel Int?     @map("grade_level")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent          TenantUnit?      @relation("UnitTree", fields: [tenantId, parentId], references: [tenantId, id], onDelete: NoAction)
+  children        TenantUnit[]     @relation("UnitTree")
+  roleAssignments RoleAssignment[]
+  invitations     Invitation[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, parentId])
+  @@map("tenant_unit")
+}
+
+model TenantSetting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  key       String
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("tenant_setting")
+}
+
+model Person {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  /// Optional link to a login identity. Students may have no account.
+  userAccountId String?   @map("user_account_id") @db.Uuid
+  givenName     String    @map("given_name")
+  familyName    String    @map("family_name")
+  displayName   String    @map("display_name")
+  dateOfBirth   DateTime? @map("date_of_birth") @db.Date
+  locale        String?   @db.VarChar(8)
+  /// School-issued identifier (student number, staff number).
+  externalRef   String?   @map("external_ref")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userAccount      UserAccount?     @relation(fields: [userAccountId], references: [id], onDelete: SetNull)
+  roleAssignments  RoleAssignment[]
+  guardianOf       Guardianship[]   @relation("GuardianPerson")
+  guardedBy        Guardianship[]   @relation("StudentPerson")
+  consentsAbout    Consent[]        @relation("ConsentSubject")
+  consentsGiven    Consent[]        @relation("ConsentGrantor")
+  invitationsSent  Invitation[]     @relation("InvitationInviter")
+  invitationsFor   Invitation[]     @relation("InvitationPerson")
+  rosterImports    RosterImport[]
+  auditLogs        AuditLog[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, userAccountId])
+  @@unique([tenantId, externalRef])
+  @@index([tenantId])
+  @@index([userAccountId])
+  @@map("person")
+}
+
+model RoleAssignment {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  personId     String    @map("person_id") @db.Uuid
+  roleId       String    @map("role_id") @db.Uuid
+  /// Optional scope, e.g. the class a teacher teaches or a student is in.
+  tenantUnitId String?   @map("tenant_unit_id") @db.Uuid
+  startsAt     DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt       DateTime? @map("ends_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  person     Person      @relation(fields: [tenantId, personId], references: [tenantId, id], onDelete: Cascade)
+  role       Role        @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  tenantUnit TenantUnit? @relation(fields: [tenantId, tenantUnitId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@index([tenantId, personId])
+  @@index([roleId])
+  @@index([tenantId, tenantUnitId])
+  @@map("role_assignment")
+}
+
+model Guardianship {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  guardianPersonId String   @map("guardian_person_id") @db.Uuid
+  studentPersonId  String   @map("student_person_id") @db.Uuid
+  /// "mother" | "father" | "guardian" | ...
+  relationship     String
+  isPrimary        Boolean  @default(false) @map("is_primary")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  guardian Person @relation("GuardianPerson", fields: [tenantId, guardianPersonId], references: [tenantId, id], onDelete: Cascade)
+  student  Person @relation("StudentPerson", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, guardianPersonId, studentPersonId])
+  @@index([tenantId])
+  @@index([tenantId, studentPersonId])
+  @@map("guardianship")
+}
+
+model Consent {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  subjectPersonId   String    @map("subject_person_id") @db.Uuid
+  /// Who gave consent: the subject (if old enough per country pack) or a guardian.
+  grantedByPersonId String?   @map("granted_by_person_id") @db.Uuid
+  /// e.g. "data_processing", "photo".
+  purpose           String
+  grantedAt         DateTime? @map("granted_at") @db.Timestamptz(6)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subject   Person  @relation("ConsentSubject", fields: [tenantId, subjectPersonId], references: [tenantId, id], onDelete: Cascade)
+  grantedBy Person? @relation("ConsentGrantor", fields: [tenantId, grantedByPersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@index([tenantId, subjectPersonId])
+  @@map("consent")
+}
+
+model Invitation {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  /// Opaque token used in invite links.
+  token           String    @unique
+  /// Short human code (optional) for typing in.
+  code            String?   @unique
+  email           String?
+  roleId          String    @map("role_id") @db.Uuid
+  tenantUnitId    String?   @map("tenant_unit_id") @db.Uuid
+  personId        String?   @map("person_id") @db.Uuid
+  invitedByPersonId String? @map("invited_by_person_id") @db.Uuid
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(6)
+  acceptedAt      DateTime? @map("accepted_at") @db.Timestamptz(6)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role       Role        @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  tenantUnit TenantUnit? @relation(fields: [tenantId, tenantUnitId], references: [tenantId, id], onDelete: NoAction)
+  person     Person?     @relation("InvitationPerson", fields: [tenantId, personId], references: [tenantId, id], onDelete: NoAction)
+  invitedBy  Person?     @relation("InvitationInviter", fields: [tenantId, invitedByPersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@index([roleId])
+  @@map("invitation")
+}
+
+model RosterImport {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  /// "csv" | "oneroster"
+  source             String
+  status             String    @default("pending")
+  fileName           String?   @map("file_name")
+  /// Validation report (Slice: rostering).
+  report             Json?
+  startedByPersonId  String?   @map("started_by_person_id") @db.Uuid
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  startedBy Person? @relation(fields: [tenantId, startedByPersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@map("roster_import")
+}
+
+model AuditLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorPersonId String?  @map("actor_person_id") @db.Uuid
+  /// Auth identity of the actor (from app.user_id).
+  actorUserId   String?  @map("actor_user_id") @db.Uuid
+  action        String
+  entityType    String   @map("entity_type")
+  entityId      String?  @map("entity_id") @db.Uuid
+  data          Json?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor  Person? @relation(fields: [tenantId, actorPersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@index([tenantId, entityType, entityId])
+  @@map("audit_log")
+}

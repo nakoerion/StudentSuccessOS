@@ -1,0 +1,36 @@
+{
+  "name": "@ssos/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:migrate:status": "dotenv -e ../../.env -- prisma migrate status",
+    "db:seed": "dotenv -e ../../.env -- tsx seed/index.ts",
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force --skip-seed && pnpm db:seed",
+    "rls:generate": "tsx rls/generate.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "@ssos/country-packs": "workspace:*"
+  },
+  "devDependencies": {
+    "@ssos/config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "dotenv": "^17.0.0",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9.39.0",
+    "prisma": "6.19.3",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
