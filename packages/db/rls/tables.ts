@@ -37,13 +37,38 @@ export const TENANT_SCOPED_TABLES: readonly TenantScopedTable[] = [
 
 /**
  * Global tables (no tenant_id). The runtime role gets only the privileges
- * listed here; RLS is not applied because the rows are not tenant-owned.
+ * listed here; Most have no RLS; `selfColumn` adds a self-row filter (tenant).
  */
-export const GLOBAL_TABLES: readonly { table: string; privileges: string }[] = [
+export interface GlobalTable {
+  table: string;
+  /** Privileges granted to the app role; null = none (access only via SECURITY DEFINER functions). */
+  privileges: string | null;
+  /**
+   * Optional self-row filter: the app role sees only the row whose `column`
+   * equals the current tenant (same expression as the tenant template).
+   */
+  selfColumn?: string;
+}
+
+export const GLOBAL_TABLES: readonly GlobalTable[] = [
   { table: "country_pack", privileges: "SELECT" },
   { table: "permission", privileges: "SELECT" },
-  { table: "tenant", privileges: "SELECT" },
-  { table: "user_account", privileges: "SELECT, INSERT, UPDATE" },
+  // Slice 2: the app sees only the current tenant's own row.
+  { table: "tenant", privileges: "SELECT", selfColumn: "id" },
+  // Slice 2: no direct access. Sign-in goes through ssos_account_for_sign_in().
+  { table: "user_account", privileges: null },
+];
+
+/**
+ * SECURITY DEFINER functions the app role may call before a tenant is chosen.
+ * Each returns rows for exactly one key (user id, e-mail, code) — never a list.
+ */
+export const APP_FUNCTIONS: readonly string[] = [
+  "ssos_user_memberships(uuid)",
+  "ssos_account_for_sign_in(text)",
+  "ssos_record_sign_in(uuid)",
+  "ssos_tenant_by_join_code(text)",
+  "ssos_invitation_by_code(text)",
 ];
 
 /** Non-superuser, NOBYPASSRLS role the application connects as. */

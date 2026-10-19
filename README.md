@@ -5,18 +5,20 @@ country differences come only from `@ssos/country-packs` data; every tenant-owne
 table carries `tenant_id` and is protected by Postgres row-level security
 generated from **one** policy template.
 
-This is **Slice 1**: monorepo foundation, schema, RLS, seed and isolation tests.
-`apps/web` is a placeholder — the UI is Slice 2.
+**Slice 1**: monorepo foundation, schema, RLS, seed and isolation tests.
+**Slice 2**: the clickable Next.js 15 app — sign-in, tenant resolution, "Join your
+school", school dashboard and roster, `sq`/`en`/`ar` with RTL, `@ssos/ui` tokens.
 
 ## Layout
 
 | Path | Package | What |
 | --- | --- | --- |
-| `apps/web` | `@ssos/web` | Next.js 15 placeholder (one page) |
+| `apps/web` | `@ssos/web` | Next.js 15 app (App Router, next-intl, Tailwind v4), Vitest + Playwright |
+| `packages/auth` | `@ssos/auth` | Auth behind a small interface (`getSessionUser`, `signInWithPassword`, `signOutUser`, `authHandlers`); today Auth.js v5 Credentials + bcrypt |
 | `packages/db` | `@ssos/db` | Prisma schema, migrations, RLS generator, seed, `withTenant`, tests |
 | `packages/config` | `@ssos/config` | Shared `tsconfig` presets (strict) and ESLint flat config |
 | `packages/country-packs` | `@ssos/country-packs` | Typed `AL` / `AE` packs — **placeholder values** |
-| `packages/ui` | `@ssos/ui` | Stub export (design tokens arrive in Slice 2) |
+| `packages/ui` | `@ssos/ui` | Design tokens (CSS variables, light/dark) + shadcn-style Button, Input, Card, Table, Badge, Tabs, Select |
 
 ## Setup (from clean)
 
@@ -35,7 +37,44 @@ pnpm typecheck
 pnpm lint
 pnpm test                         # Vitest against the real database
 pnpm build
+pnpm --filter @ssos/web start     # http://localhost:3000  (or `pnpm --filter @ssos/web dev`)
 ```
+
+### Running the app
+
+`.env` (copied from `.env.example` by `db-up.sh`) needs `DATABASE_URL`,
+`DATABASE_ADMIN_URL` and `AUTH_SECRET`. The web scripts load the repo-root `.env`
+via `dotenv-cli`. Sign in with any demo account below; **every demo account's
+password is `Demo1234!`**. Set `SSOS_HIDE_DEMO_ACCOUNTS=1` to hide the demo list
+on the sign-in page.
+
+| URL | What |
+| --- | --- |
+| `/sign-in` | Email + password |
+| `/` | Routes by memberships: 0 → `/join`, 1 → `/t/<slug>`, many → `/schools` |
+| `/join` | Join code (`TIR-4821`, `AUH-7315`) → choose Student/Parent/Teacher → *pending* ("waiting for approval"); invitation code (`INV-TIR-001`, `INV-AUH-001`) → role granted immediately (single use) |
+| `/t/<slug>` | Dashboard: counts of students, teachers, parents, classes (parents see "My children") |
+| `/t/<slug>/people` | Roster: role tabs + name/ID search via URL params, server-rendered; students show guardians |
+
+Rules enforced on the server:
+- The active tenant is the URL slug. `requireTenant(slug)` 404s unless the user has an
+  **active** role there, and every query runs through `withTenant(tenantId, …, { userId })`.
+- Roster scope comes from permission keys (`roster.read` → whole roster;
+  `guardianship.read_own` → only students the viewer is guardian of), applied in the SQL
+  `WHERE` — a parent cannot widen it with `?role=` or `?q=`.
+- Locale: `NEXT_LOCALE` cookie (set by the switcher) > the tenant's `default_locale`
+  > account locale > `Accept-Language` > `en`. `ar` renders `<html dir="rtl" lang="ar">`;
+  components use logical properties only (`ps/pe/ms/me`, `start/end`).
+- Theme: `ssos-theme` cookie (`light`/`dark`), applied server-side as `class="dark"`.
+
+### Playwright smoke
+
+```bash
+pnpm --filter @ssos/web build
+PLAYWRIGHT_BROWSERS_PATH=/opt/browsers pnpm --filter @ssos/web test:e2e   # re-seeds first
+```
+`/opt/browsers` already holds the matching Chromium build in this environment; elsewhere run
+`npx playwright install chromium` once.
 
 ### PostgreSQL
 
@@ -98,8 +137,16 @@ Other integrity rules (`prisma/migrations/20261018000050_integrity`):
 - Trigger: a role referenced by `role_assignment` / `invitation` must be a system
   role or the same tenant's; `role_permission.tenant_id` must equal the role's.
 - `UNIQUE … NULLS NOT DISTINCT` for system role keys and default grade scales.
-- `ssos_user_memberships(user_account_id)` — SECURITY DEFINER lookup for Slice 2
-  sign-in ("which schools/roles does this login have?") before a tenant is chosen.
+- SECURITY DEFINER lookups (`prisma/migrations/20261019000000_auth_join`), each taking one
+  key and returning one subject — the runtime role's only way to reach `user_account`
+  or other tenants' rows before a tenant is chosen (typed wrappers in `@ssos/db` `lookups.ts`):
+  `ssos_user_memberships(user_id)` (tenant, slug, default locale, role, status),
+  `ssos_account_for_sign_in(email)`, `ssos_record_sign_in(user_id)`,
+  `ssos_tenant_by_join_code(code)`, `ssos_invitation_by_code(code)`.
+- Slice 2 tightening (generated `20261019000100_rls`): `ssos_app` has **no** privileges on
+  `user_account`, and `tenant` has forced RLS with a `tenant_self` policy
+  (`id = app.tenant_id`, SELECT only) — so the app role cannot list accounts or schools.
+- `role_assignment.status` is `active` | `pending` (join-code claims await approval).
 
 ## Seed
 
@@ -119,8 +166,7 @@ Per tenant: 30 students (10 in each of 3 classes), 6 teachers, 20 parents
 
 ### Demo login accounts
 
-Authentication itself is Slice 2; these `user_account` rows exist and are linked
-to seeded people.
+Every account's password is **`Demo1234!`** (bcrypt-hashed by the seed).
 
 | Email | Tenant | Role |
 | --- | --- | --- |
@@ -141,15 +187,17 @@ All names are synthetic combinations; no real people.
 | `pnpm build` | turbo: builds `apps/web` |
 | `pnpm typecheck` | turbo: `tsc --noEmit` in every workspace |
 | `pnpm lint` | turbo: ESLint (shared flat config) |
-| `pnpm test` | turbo: Vitest in `packages/db` (needs Postgres up, migrated, seeded) |
+| `pnpm test` | turbo: Vitest in `packages/db`, `packages/auth`, `apps/web`, one package at a time (needs Postgres up, migrated, seeded) |
 | `pnpm db:up` | start Postgres + ensure roles/db |
 | `pnpm db:migrate` | `prisma migrate deploy` |
 | `pnpm db:seed` | seed demo data |
 | `pnpm db:reset` | drop everything, re-migrate, re-seed |
 | `pnpm rls:generate` | regenerate the RLS migration from the template |
 
-## Deferred (not in Slice 1)
+## Deferred
 
-Next.js UI, auth, i18n/RTL, design tokens (Slice 2); researched country-pack values;
+Approving pending join requests (an admin UI; the dashboard only shows the count);
+an external auth provider (Supabase Auth would replace `packages/auth/src/next-auth.ts`);
+password reset / sign-up; researched country-pack values;
 invite outreach; CSV/OneRoster import; RBAC service layer and tenant custom roles;
 audit middleware; Storybook; CI; OpenAPI.

@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { accountForSignIn, invitationByCode, tenantByJoinCode, userMemberships } from "../src/lookups";
 import { withTenant } from "../src/with-tenant";
 import { appClient, EXPECTED, ownerClient, Rollback, TENANT_A, TENANT_B } from "./helpers";
 
@@ -214,12 +215,119 @@ describe("no tenant set", () => {
 describe("pre-tenant lookups", () => {
   it("ssos_user_memberships resolves a demo login to its tenant and role", async () => {
     const account = await owner.userAccount.findUniqueOrThrow({ where: { email: "parent.tirane@demo.ssos.test" } });
-    const rows = await app.$queryRaw<{ tenant_id: string; role_key: string }[]>`
-      SELECT tenant_id, role_key FROM ssos_user_memberships(${account.id}::uuid)`;
+    const rows = await app.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${account.id}, true)`;
+      return tx.$queryRaw<{ tenant_id: string; role_key: string }[]>`
+        SELECT tenant_id, role_key FROM ssos_user_memberships(${account.id}::uuid)`;
+    });
     expect(rows).toEqual([{ tenant_id: TENANT_A, role_key: "parent" }]);
 
     const noRole = await owner.userAccount.findUniqueOrThrow({ where: { email: "join@demo.ssos.test" } });
-    const none = await app.$queryRaw<unknown[]>`SELECT * FROM ssos_user_memberships(${noRole.id}::uuid)`;
+    const none = await app.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${noRole.id}, true)`;
+      return tx.$queryRaw<unknown[]>`SELECT * FROM ssos_user_memberships(${noRole.id}::uuid)`;
+    });
     expect(none).toEqual([]);
+  });
+
+  it("ssos_user_memberships answers only for the caller in app.user_id", async () => {
+    const parent = await owner.userAccount.findUniqueOrThrow({ where: { email: "parent.tirane@demo.ssos.test" } });
+    const admin = await owner.userAccount.findUniqueOrThrow({ where: { email: "admin.abudhabi@demo.ssos.test" } });
+
+    // No app.user_id set: the app role learns nothing about any user.
+    const unset = await app.$queryRaw<unknown[]>`SELECT * FROM ssos_user_memberships(${parent.id}::uuid)`;
+    expect(unset).toEqual([]);
+
+    // Signed in as the parent, asking about another user (the Abu Dhabi admin): no rows.
+    const other = await app.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${parent.id}, true)`;
+      return tx.$queryRaw<unknown[]>`SELECT * FROM ssos_user_memberships(${admin.id}::uuid)`;
+    });
+    expect(other).toEqual([]);
+
+    // The typed wrapper sets app.user_id itself and still resolves the caller.
+    const own = await userMemberships(parent.id, app);
+    expect(own.map((m) => m.tenantId)).toEqual([TENANT_A]);
+  });
+
+  it("userMemberships() returns slug, default locale and active status", async () => {
+    const account = await owner.userAccount.findUniqueOrThrow({ where: { email: "admin.abudhabi@demo.ssos.test" } });
+    const rows = await userMemberships(account.id, app);
+    expect(rows).toEqual([
+      expect.objectContaining({
+        tenantId: TENANT_B,
+        tenantSlug: "demo-school-abu-dhabi",
+        defaultLocale: "en",
+        roleKey: "admin",
+        status: "active",
+      }),
+    ]);
+  });
+
+  it("accountForSignIn() returns exactly the one account asked for, with its hash", async () => {
+    const a = await accountForSignIn("PARENT.TIRANE@demo.ssos.test", app);
+    expect(a?.email).toBe("parent.tirane@demo.ssos.test");
+    expect(a?.passwordHash).toMatch(/^\$2[aby]\$/);
+    expect(await accountForSignIn("nobody@demo.ssos.test", app)).toBeNull();
+    // A pattern is not a wildcard: the lookup is equality on lower(email).
+    expect(await accountForSignIn("%", app)).toBeNull();
+  });
+
+  it("tenantByJoinCode() / invitationByCode() resolve one code each", async () => {
+    expect(await tenantByJoinCode(" tir-4821 ", app)).toEqual({
+      tenantId: TENANT_A,
+      tenantSlug: "liceu-demo-tirane",
+      tenantName: "Liceu Demo Tiranë",
+    });
+    expect(await tenantByJoinCode("NOPE-0000", app)).toBeNull();
+    const inv = await invitationByCode("INV-AUH-001", app);
+    expect(inv).toMatchObject({ tenantId: TENANT_B, roleKey: "teacher", revokedAt: null });
+    expect(await invitationByCode("INV-XXX-999", app)).toBeNull();
+  });
+});
+
+describe("global tables are not listable by the app role (Slice 2 tightening)", () => {
+  it("cannot SELECT user_account at all", async () => {
+    await expect(app.$queryRaw`SELECT id, email FROM user_account`).rejects.toThrow(/permission denied/);
+    await expect(app.userAccount.count()).rejects.toThrow(/permission denied/);
+  });
+
+  it("cannot INSERT or UPDATE user_account", async () => {
+    await expect(
+      app.$executeRaw`UPDATE user_account SET display_name = 'x' WHERE email = 'join@demo.ssos.test'`,
+    ).rejects.toThrow(/permission denied/);
+    await expect(app.$executeRaw`INSERT INTO user_account (email) VALUES ('evil@x.test')`).rejects.toThrow(
+      /permission denied/,
+    );
+  });
+
+  it("cannot list other tenants' accounts even from inside a tenant", async () => {
+    await expect(
+      withTenant(TENANT_A, (tx) => tx.userAccount.findMany({ select: { email: true } }), { client: app }),
+    ).rejects.toThrow(/permission denied/);
+    // The only path is per-tenant person rows, which RLS limits to tenant A.
+    const linked = await withTenant(
+      TENANT_A,
+      (tx) => tx.person.findMany({ where: { userAccountId: { not: null } }, select: { tenantId: true } }),
+      { client: app },
+    );
+    expect(linked.length).toBe(3);
+    expect(new Set(linked.map((p) => p.tenantId))).toEqual(new Set([TENANT_A]));
+  });
+
+  it("sees no tenant rows without a tenant, and only its own row with one", async () => {
+    expect(await app.tenant.count()).toBe(0);
+    const rows = await withTenant(TENANT_A, (tx) => tx.tenant.findMany({ select: { id: true } }), { client: app });
+    expect(rows).toEqual([{ id: TENANT_A }]);
+    const other = await withTenant(TENANT_A, (tx) => tx.tenant.findUnique({ where: { id: TENANT_B } }), {
+      client: app,
+    });
+    expect(other).toBeNull();
+  });
+
+  it("cannot modify tenant rows", async () => {
+    await expect(
+      withTenant(TENANT_A, (tx) => tx.$executeRaw`UPDATE tenant SET name = 'x'`, { client: app }),
+    ).rejects.toThrow(/permission denied/);
   });
 });

@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
-    "@ssos/country-packs": "workspace:*"
+    "@ssos/country-packs": "workspace:*",
+    "bcryptjs": "^3.0.3"
   },
   "devDependencies": {
     "@ssos/config": "workspace:*",

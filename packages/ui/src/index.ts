@@ -1,10 +1,22 @@
-// Stub. Slice 2 adds design tokens (colour, type, spacing; light/dark) and
-// RTL-safe primitives built on Tailwind + shadcn/ui.
-export const UI_PACKAGE = "@ssos/ui" as const;
-
-export type Direction = "ltr" | "rtl";
-
-/** Text direction for a locale. Arabic is the only RTL locale we ship. */
-export function directionFor(locale: string): Direction {
-  return locale === "ar" ? "rtl" : "ltr";
-}
+/**
+ * @ssos/ui — design tokens + shadcn/ui-style primitives.
+ *
+ * Tokens: `@import "@ssos/ui/styles.css";` in the app stylesheet (Tailwind v4).
+ * Components use logical properties only (ps/pe/ms/me, start/end) — RTL-safe.
+ */
+export { cn } from "./lib/cn";
+export { Button, buttonVariants, type ButtonProps } from "./components/button";
+export { Input, Label } from "./components/input";
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "./components/card";
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableCaption,
+} from "./components/table";
+export { Badge, badgeVariants, type BadgeProps } from "./components/badge";
+export { Tabs, TabsList, TabsTrigger, TabsContent, TabsNav, TabsNavItem } from "./components/tabs";
+export { Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectItem } from "./components/select";
