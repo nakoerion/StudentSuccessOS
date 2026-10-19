@@ -43,18 +43,26 @@ export interface InvitationLookup extends JoinCodeTenant {
   revokedAt: Date | null;
 }
 
+/**
+ * Memberships of the signed-in user. `ssos_user_memberships` only answers for
+ * the caller identified by the transaction-local `app.user_id`, so the
+ * setting and the call share one transaction (one physical connection).
+ */
 export async function userMemberships(userId: string, client: PrismaClient = defaultClient): Promise<MembershipRow[]> {
-  const rows = await client.$queryRaw<
-    {
-      tenant_id: string;
-      tenant_slug: string;
-      tenant_name: string;
-      default_locale: string;
-      person_id: string;
-      role_key: string | null;
-      status: MembershipStatus | null;
-    }[]
-  >`SELECT * FROM ssos_user_memberships(${userId}::uuid)`;
+  const rows = await client.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.user_id', ${userId}, true)`;
+    return tx.$queryRaw<
+      {
+        tenant_id: string;
+        tenant_slug: string;
+        tenant_name: string;
+        default_locale: string;
+        person_id: string;
+        role_key: string | null;
+        status: MembershipStatus | null;
+      }[]
+    >`SELECT * FROM ssos_user_memberships(${userId}::uuid)`;
+  });
   return rows.map((r) => ({
     tenantId: r.tenant_id,
     tenantSlug: r.tenant_slug,

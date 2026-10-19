@@ -215,13 +215,39 @@ describe("no tenant set", () => {
 describe("pre-tenant lookups", () => {
   it("ssos_user_memberships resolves a demo login to its tenant and role", async () => {
     const account = await owner.userAccount.findUniqueOrThrow({ where: { email: "parent.tirane@demo.ssos.test" } });
-    const rows = await app.$queryRaw<{ tenant_id: string; role_key: string }[]>`
-      SELECT tenant_id, role_key FROM ssos_user_memberships(${account.id}::uuid)`;
+    const rows = await app.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${account.id}, true)`;
+      return tx.$queryRaw<{ tenant_id: string; role_key: string }[]>`
+        SELECT tenant_id, role_key FROM ssos_user_memberships(${account.id}::uuid)`;
+    });
     expect(rows).toEqual([{ tenant_id: TENANT_A, role_key: "parent" }]);
 
     const noRole = await owner.userAccount.findUniqueOrThrow({ where: { email: "join@demo.ssos.test" } });
-    const none = await app.$queryRaw<unknown[]>`SELECT * FROM ssos_user_memberships(${noRole.id}::uuid)`;
+    const none = await app.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${noRole.id}, true)`;
+      return tx.$queryRaw<unknown[]>`SELECT * FROM ssos_user_memberships(${noRole.id}::uuid)`;
+    });
     expect(none).toEqual([]);
+  });
+
+  it("ssos_user_memberships answers only for the caller in app.user_id", async () => {
+    const parent = await owner.userAccount.findUniqueOrThrow({ where: { email: "parent.tirane@demo.ssos.test" } });
+    const admin = await owner.userAccount.findUniqueOrThrow({ where: { email: "admin.abudhabi@demo.ssos.test" } });
+
+    // No app.user_id set: the app role learns nothing about any user.
+    const unset = await app.$queryRaw<unknown[]>`SELECT * FROM ssos_user_memberships(${parent.id}::uuid)`;
+    expect(unset).toEqual([]);
+
+    // Signed in as the parent, asking about another user (the Abu Dhabi admin): no rows.
+    const other = await app.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${parent.id}, true)`;
+      return tx.$queryRaw<unknown[]>`SELECT * FROM ssos_user_memberships(${admin.id}::uuid)`;
+    });
+    expect(other).toEqual([]);
+
+    // The typed wrapper sets app.user_id itself and still resolves the caller.
+    const own = await userMemberships(parent.id, app);
+    expect(own.map((m) => m.tenantId)).toEqual([TENANT_A]);
   });
 
   it("userMemberships() returns slug, default locale and active status", async () => {
