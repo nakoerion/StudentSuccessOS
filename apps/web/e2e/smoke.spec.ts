@@ -48,10 +48,10 @@ test("join@ uses the join code and waits for approval", async ({ page }) => {
   await signIn(page, "join@demo.ssos.test");
   await expect(page).toHaveURL(/\/join$/);
   await page.locator("#code").fill("tir-4821");
-  await page.locator('form button[type="submit"]').click();
+  await page.getByRole("main").locator('form button[type="submit"]').click();
   await expect(page).toHaveURL(/\/join\?code=TIR-4821/);
   await page.getByTestId("role-parent").check();
-  await page.locator('form button[type="submit"]').last().click();
+  await page.getByRole("main").locator('form button[type="submit"]').last().click();
   await expect(page.getByTestId("pending-approval")).toBeVisible();
   await expect(page.getByTestId("pending-approval")).toContainText("Liceu Demo Tiranë");
 });
