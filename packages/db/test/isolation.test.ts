@@ -26,6 +26,42 @@ describe("runtime role", () => {
   });
 });
 
+describe("hosted Postgres (Supabase) roles", () => {
+  // On Supabase, anon/authenticated/service_role back the public Data API (PostgREST,
+  // GraphQL) and the `postgres` role has BYPASSRLS. None of them may reach SSOS rows.
+  // On a plain local Postgres these roles do not exist and the checks are vacuous.
+  const dataApiRoles = ["anon", "authenticated"];
+
+  it("the runtime URL is not Supabase's postgres role", async () => {
+    const [row] = await app.$queryRaw<{ session_user: string }[]>`SELECT session_user::text AS session_user`;
+    expect(row!.session_user).toBe("ssos_app");
+  });
+
+  it("Data API roles have no privileges on any SSOS table or function", async () => {
+    const leaks = await owner.$queryRaw<{ grantee: string; object: string; kind: string }[]>`
+      SELECT r.rolname AS grantee, c.relname::text AS object, 'table' AS kind
+        FROM pg_roles r, pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE r.rolname = ANY(${dataApiRoles}) AND n.nspname = 'public' AND c.relkind IN ('r', 'v', 'm', 'p')
+         AND has_table_privilege(r.oid, c.oid, 'SELECT, INSERT, UPDATE, DELETE')
+      UNION ALL
+      SELECT r.rolname, p.proname::text, 'function'
+        FROM pg_roles r, pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE r.rolname = ANY(${dataApiRoles}) AND n.nspname = 'public' AND p.proname LIKE 'ssos\\_%'
+         -- Trigger functions cannot be called directly (not via RPC either), so a default
+         -- PUBLIC EXECUTE on them exposes nothing.
+         AND p.prorettype <> 'trigger'::regtype
+         AND has_function_privilege(r.oid, p.oid, 'EXECUTE')`;
+    expect(leaks).toEqual([]);
+  });
+
+  it("ssos_app cannot bypass RLS and the tables are owned by ssos_owner (not postgres)", async () => {
+    const [row] = await owner.$queryRaw<{ app_bypass: boolean; owner: string }[]>`
+      SELECT (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname = 'ssos_app') AS app_bypass,
+             (SELECT pg_get_userbyid(relowner) FROM pg_class WHERE oid = 'public.person'::regclass) AS owner`;
+    expect(row).toEqual({ app_bypass: false, owner: "ssos_owner" });
+  });
+});
+
 describe("tenant isolation (reads)", () => {
   for (const [label, tenantId, otherId] of [
     ["A (Tirana)", TENANT_A, TENANT_B],

@@ -11,6 +11,7 @@
     "lint": "turbo run lint --concurrency=1",
     "test": "turbo run test --concurrency=1",
     "db:up": "bash scripts/db-up.sh",
+    "db:up:supabase": "bash scripts/supabase-db-up.sh",
     "db:generate": "pnpm --filter @ssos/db db:generate",
     "db:migrate": "pnpm --filter @ssos/db db:migrate",
     "db:seed": "pnpm --filter @ssos/db db:seed",
