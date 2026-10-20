@@ -14,7 +14,7 @@ school", school dashboard and roster, `sq`/`en`/`ar` with RTL, `@ssos/ui` tokens
 | Path | Package | What |
 | --- | --- | --- |
 | `apps/web` | `@ssos/web` | Next.js 15 app (App Router, next-intl, Tailwind v4), Vitest + Playwright |
-| `packages/auth` | `@ssos/auth` | Auth behind a small interface (`getSessionUser`, `signInWithPassword`, `signOutUser`, `authHandlers`); today Auth.js v5 Credentials + bcrypt |
+| `packages/auth` | `@ssos/auth` | Auth behind a small interface (`getSessionUser`, `signInWithPassword`, `signOutUser`, `authHandlers`, `@ssos/auth/middleware`); Supabase Auth (cookie sessions via `@supabase/ssr`) |
 | `packages/db` | `@ssos/db` | Prisma schema, migrations, RLS generator, seed, `withTenant`, tests |
 | `packages/config` | `@ssos/config` | Shared `tsconfig` presets (strict) and ESLint flat config |
 | `packages/country-packs` | `@ssos/country-packs` | Typed `AL` / `AE` packs — **placeholder values** |
@@ -33,6 +33,7 @@ bash scripts/db-up.sh             # start Postgres 16, create roles + database, 
 pnpm install                      # also runs `prisma generate`
 pnpm db:migrate                   # prisma migrate deploy (as ssos_owner)
 pnpm db:seed                      # deterministic; safe to re-run
+pnpm auth:seed                    # create/refresh demo logins in Supabase Auth + link external_auth_id (idempotent)
 pnpm typecheck
 pnpm lint
 pnpm test                         # Vitest against the real database
@@ -43,8 +44,23 @@ pnpm --filter @ssos/web start     # http://localhost:3000  (or `pnpm --filter @s
 ### Running the app
 
 `.env` (copied from `.env.example` by `db-up.sh`) needs `DATABASE_URL`,
-`DATABASE_ADMIN_URL` and `AUTH_SECRET`. The web scripts load the repo-root `.env`
-via `dotenv-cli`. Sign in with any demo account below; **every demo account's
+`DATABASE_ADMIN_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and (for
+`pnpm auth:seed` only) the server-only `SUPABASE_SECRET_KEY` — see `.env.example`
+for which key is client-safe. Never commit real values. The web scripts load the
+repo-root `.env` via `dotenv-cli`.
+
+**Auth = Supabase, data = local Postgres.** Supabase Auth stores passwords and
+issues the cookie session; `apps/web/middleware.ts` validates/refreshes it on
+every page request and sends visitors without a session to `/sign-in`. The
+Supabase user id (`auth.users.id`) is stored in `user_account.external_auth_id`;
+`getSessionUser()` maps it to the `user_account` row (via the SECURITY DEFINER
+`ssos_account_for_auth`) and `SessionUser.id` stays the `user_account.id` used by
+`userMemberships`, `withTenant` and `person.user_account_id`
+(`SessionUser.authId` is the Supabase id). A Supabase user with no linked
+account gets a fresh role-less account and lands on `/join`; an existing account
+is never auto-linked by e-mail — `pnpm auth:seed` links the demo logins.
+Auth endpoints: `GET /api/auth/session`, `GET /api/auth/callback` (PKCE code
+exchange), `POST /api/auth/sign-out`. Sign in with any demo account below; **every demo account's
 password is `Demo1234!`**. Set `SSOS_HIDE_DEMO_ACCOUNTS=1` to hide the demo list
 on the sign-in page.
 
@@ -166,7 +182,8 @@ Per tenant: 30 students (10 in each of 3 classes), 6 teachers, 20 parents
 
 ### Demo login accounts
 
-Every account's password is **`Demo1234!`** (bcrypt-hashed by the seed).
+Every account's password is **`Demo1234!`** — stored in Supabase Auth by
+`pnpm auth:seed` (`packages/db/scripts/seed-supabase-auth.ts`), not in our database.
 
 | Email | Tenant | Role |
 | --- | --- | --- |
@@ -191,13 +208,13 @@ All names are synthetic combinations; no real people.
 | `pnpm db:up` | start Postgres + ensure roles/db |
 | `pnpm db:migrate` | `prisma migrate deploy` |
 | `pnpm db:seed` | seed demo data |
+| `pnpm auth:seed` | create/refresh the demo logins in Supabase Auth and link `user_account.external_auth_id` |
 | `pnpm db:reset` | drop everything, re-migrate, re-seed |
 | `pnpm rls:generate` | regenerate the RLS migration from the template |
 
 ## Deferred
 
 Approving pending join requests (an admin UI; the dashboard only shows the count);
-an external auth provider (Supabase Auth would replace `packages/auth/src/next-auth.ts`);
 password reset / sign-up; researched country-pack values;
 invite outreach; CSV/OneRoster import; RBAC service layer and tenant custom roles;
 audit middleware; Storybook; CI; OpenAPI.

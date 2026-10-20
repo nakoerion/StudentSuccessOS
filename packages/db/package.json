@@ -13,6 +13,7 @@
     "db:migrate:status": "dotenv -e ../../.env -- prisma migrate status",
     "db:seed": "dotenv -e ../../.env -- tsx seed/index.ts",
     "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force --skip-seed && pnpm db:seed",
+    "auth:seed": "dotenv -e ../../.env -- tsx scripts/seed-supabase-auth.ts",
     "rls:generate": "tsx rls/generate.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -20,11 +21,11 @@
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
-    "@ssos/country-packs": "workspace:*",
-    "bcryptjs": "^3.0.3"
+    "@ssos/country-packs": "workspace:*"
   },
   "devDependencies": {
     "@ssos/config": "workspace:*",
+    "@supabase/supabase-js": "^2.118.0",
     "@types/node": "^22.0.0",
     "dotenv": "^17.0.0",
     "dotenv-cli": "^11.0.0",

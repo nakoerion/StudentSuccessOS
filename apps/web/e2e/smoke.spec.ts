@@ -6,9 +6,10 @@ import { expect, type Page, test } from "@playwright/test";
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const PASSWORD = "Demo1234!";
 
-// Reset the demo tenants (the join flow writes to them) before the run.
+// Reset the demo tenants (the join flow writes to them) and make sure the demo
+// logins exist in the REAL Supabase project and are linked (idempotent).
 test.beforeAll(() => {
-  execSync("pnpm db:seed", { cwd: REPO_ROOT, stdio: "ignore" });
+  execSync("pnpm db:seed && pnpm auth:seed", { cwd: REPO_ROOT, stdio: "ignore" });
 });
 
 async function signIn(page: Page, email: string) {
@@ -79,4 +80,31 @@ test("no session -> sign-in; other tenant's slug -> 404", async ({ page }) => {
   await expect(page).toHaveURL(/\/t\/demo-school-abu-dhabi$/);
   const res = await page.goto("/t/liceu-demo-tirane/people");
   expect(res?.status()).toBe(404);
+});
+
+test("Supabase session: /api/auth/session reflects it and sign-out clears it", async ({ page }) => {
+  await signIn(page, "teacher.abudhabi@demo.ssos.test");
+  await expect(page).toHaveURL(/\/t\/demo-school-abu-dhabi$/);
+  const cookies = await page.context().cookies();
+  expect(cookies.some((c) => /^sb-.*-auth-token/.test(c.name))).toBe(true);
+  const me = await page.request.get("/api/auth/session");
+  expect(me.status()).toBe(200);
+  const body = (await me.json()) as { user: { email: string; authId: string } };
+  expect(body.user.email).toBe("teacher.abudhabi@demo.ssos.test");
+  expect(body.user.authId).toMatch(/^[0-9a-f-]{36}$/);
+
+  await page.getByTestId("sign-out").first().click();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  expect((await page.request.get("/api/auth/session")).status()).toBe(401);
+  await page.goto("/t/demo-school-abu-dhabi");
+  await expect(page).toHaveURL(/\/sign-in$/);
+});
+
+test("wrong password stays on sign-in with an error", async ({ page }) => {
+  await page.goto("/sign-in");
+  await page.locator("#email").fill("admin.tirane@demo.ssos.test");
+  await page.locator("#password").fill("wrong-password");
+  await page.locator('form button[type="submit"]').click();
+  await expect(page.locator("#email")).toHaveAttribute("aria-invalid", "true");
+  await expect(page).toHaveURL(/\/sign-in$/);
 });

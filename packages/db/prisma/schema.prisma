@@ -91,12 +91,10 @@ model Permission {
 model UserAccount {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String    @unique
-  /// Subject id from the auth provider (decided in Slice 2).
+  /// Supabase Auth subject (auth.users.id). The session identity maps here.
   externalAuthId String?   @unique @map("external_auth_id")
   displayName    String?   @map("display_name")
   locale         String?   @db.VarChar(8)
-  /// bcrypt hash for the Credentials provider (Slice 2). NULL = no password sign-in.
-  passwordHash   String?   @map("password_hash")
   lastSignInAt   DateTime? @map("last_sign_in_at") @db.Timestamptz(6)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)

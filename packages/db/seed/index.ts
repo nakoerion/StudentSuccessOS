@@ -7,12 +7,11 @@
  */
 import { getCountryPack } from "@ssos/country-packs";
 import type { Prisma, PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
 
 import { createAdminClient } from "../src/client";
 import { PERMISSIONS, ROLE_PERMISSIONS, SYSTEM_ROLES, type SystemRoleKey } from "../src/system-roles";
 import { pick, prng, seedId, seedToken } from "./deterministic";
-import { COUNTS, DEMO_EMAIL_DOMAIN, DEMO_PASSWORD, NO_ROLE_EMAIL, TENANTS, type TenantFixture } from "./fixtures";
+import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture } from "./fixtures";
 import type { NamePool } from "./names";
 
 type Tx = Prisma.TransactionClient;
@@ -113,7 +112,6 @@ async function seedTenant(
   tx: Tx,
   f: TenantFixture,
   roleIds: Record<SystemRoleKey, string>,
-  passwordHash: string,
 ) {
   const rand = prng(f.slug);
   const tenantId = seedId("tenant", f.slug);
@@ -269,9 +267,9 @@ async function seedTenant(
         email,
         displayName: person.displayName,
         locale: f.defaultLocale,
-        passwordHash,
       },
-      update: { displayName: person.displayName, locale: f.defaultLocale, passwordHash },
+      // external_auth_id is NOT touched: the Supabase link survives re-seeding.
+      update: { displayName: person.displayName, locale: f.defaultLocale },
     });
     await tx.person.update({ where: { id: person.id }, data: { userAccountId: account.id } });
   }
@@ -306,13 +304,13 @@ async function seedTenant(
 }
 
 export async function seed(client: PrismaClient): Promise<void> {
-  // One bcrypt hash (cost 10) of the shared demo password for every demo login.
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+  // Passwords live in Supabase Auth: run `pnpm auth:seed` after this to create
+  // the demo logins there and link user_account.external_auth_id.
   await client.$transaction(
     async (tx) => {
       const roleIds = await seedGlobals(tx);
       for (const f of TENANTS) {
-        const r = await seedTenant(tx, f, roleIds, passwordHash);
+        const r = await seedTenant(tx, f, roleIds);
         console.info(
           `Seeded ${f.name} (${r.tenantId}): ${r.persons} persons, ${r.assignments} role assignments, ${r.guardianships} guardianships`,
         );
@@ -324,9 +322,8 @@ export async function seed(client: PrismaClient): Promise<void> {
           email: NO_ROLE_EMAIL,
           displayName: "New User",
           locale: "en",
-          passwordHash,
         },
-        update: { passwordHash },
+        update: {},
       });
     },
     { timeout: 120_000 },
