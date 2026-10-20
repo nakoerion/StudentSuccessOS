@@ -55,7 +55,7 @@ export const GLOBAL_TABLES: readonly GlobalTable[] = [
   { table: "permission", privileges: "SELECT" },
   // Slice 2: the app sees only the current tenant's own row.
   { table: "tenant", privileges: "SELECT", selfColumn: "id" },
-  // Slice 2: no direct access. Sign-in goes through ssos_account_for_sign_in().
+  // Slice 2: no direct access. Sign-in resolves the account via ssos_account_for_auth().
   { table: "user_account", privileges: null },
 ];
 
@@ -65,7 +65,7 @@ export const GLOBAL_TABLES: readonly GlobalTable[] = [
  */
 export const APP_FUNCTIONS: readonly string[] = [
   "ssos_user_memberships(uuid)",
-  "ssos_account_for_sign_in(text)",
+  "ssos_account_for_auth(text, text, text)",
   "ssos_record_sign_in(uuid)",
   "ssos_tenant_by_join_code(text)",
   "ssos_invitation_by_code(text)",

@@ -1,4 +1,4 @@
 {
   "extends": "@ssos/config/tsconfig/library.json",
-  "include": ["src", "rls", "seed", "test", "*.ts"]
+  "include": ["src", "rls", "seed", "scripts", "test", "*.ts"]
 }

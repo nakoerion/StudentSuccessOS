@@ -20,12 +20,13 @@ export interface MembershipRow {
   status: MembershipStatus | null;
 }
 
-export interface SignInAccount {
+/** The user_account linked to an auth-provider subject (user_account.external_auth_id). */
+export interface AuthAccount {
+  /** user_account.id — the app's identity (app.user_id, person.user_account_id). */
   id: string;
   email: string;
   displayName: string | null;
   locale: string | null;
-  passwordHash: string | null;
 }
 
 export interface JoinCodeTenant {
@@ -74,17 +75,22 @@ export async function userMemberships(userId: string, client: PrismaClient = def
   }));
 }
 
-export async function accountForSignIn(
-  email: string,
+/**
+ * Map a verified auth-provider subject (Supabase auth.users.id) to its
+ * user_account by `external_auth_id`. If nothing is linked yet, an account is
+ * provisioned for that subject (it has no roles, so it lands on "Join your
+ * school"). Never links to an existing account by e-mail — returns null then.
+ * Call ONLY with a subject taken from a verified session.
+ */
+export async function accountForAuthSubject(
+  subject: { externalAuthId: string; email: string; displayName?: string | null },
   client: PrismaClient = defaultClient,
-): Promise<SignInAccount | null> {
+): Promise<AuthAccount | null> {
   const rows = await client.$queryRaw<
-    { id: string; email: string; display_name: string | null; locale: string | null; password_hash: string | null }[]
-  >`SELECT * FROM ssos_account_for_sign_in(${email})`;
+    { id: string; email: string; display_name: string | null; locale: string | null }[]
+  >`SELECT * FROM ssos_account_for_auth(${subject.externalAuthId}, ${subject.email}, ${subject.displayName ?? null})`;
   const r = rows[0];
-  return r
-    ? { id: r.id, email: r.email, displayName: r.display_name, locale: r.locale, passwordHash: r.password_hash }
-    : null;
+  return r ? { id: r.id, email: r.email, displayName: r.display_name, locale: r.locale } : null;
 }
 
 export async function recordSignIn(userId: string, client: PrismaClient = defaultClient): Promise<void> {

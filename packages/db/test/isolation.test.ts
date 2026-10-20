@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { accountForSignIn, invitationByCode, tenantByJoinCode, userMemberships } from "../src/lookups";
+import { accountForAuthSubject, invitationByCode, tenantByJoinCode, userMemberships } from "../src/lookups";
 import { withTenant } from "../src/with-tenant";
 import { appClient, EXPECTED, ownerClient, Rollback, TENANT_A, TENANT_B } from "./helpers";
 
@@ -264,13 +265,30 @@ describe("pre-tenant lookups", () => {
     ]);
   });
 
-  it("accountForSignIn() returns exactly the one account asked for, with its hash", async () => {
-    const a = await accountForSignIn("PARENT.TIRANE@demo.ssos.test", app);
-    expect(a?.email).toBe("parent.tirane@demo.ssos.test");
-    expect(a?.passwordHash).toMatch(/^\$2[aby]\$/);
-    expect(await accountForSignIn("nobody@demo.ssos.test", app)).toBeNull();
-    // A pattern is not a wildcard: the lookup is equality on lower(email).
-    expect(await accountForSignIn("%", app)).toBeNull();
+  it("accountForAuthSubject() maps external_auth_id -> one account, provisioning once", async () => {
+    const subject = { externalAuthId: randomUUID(), email: `Auth-Test-${randomUUID()}@demo.ssos.test` };
+    try {
+      const first = await accountForAuthSubject({ ...subject, displayName: "Auth Test" }, app);
+      expect(first).toMatchObject({ email: subject.email.toLowerCase(), displayName: "Auth Test", locale: null });
+      const again = await accountForAuthSubject(subject, app);
+      expect(again?.id).toBe(first?.id);
+      // A fresh account has no persons, so no memberships ("Join your school").
+      expect(await userMemberships(first!.id, app)).toEqual([]);
+    } finally {
+      await owner.userAccount.deleteMany({ where: { externalAuthId: subject.externalAuthId } });
+    }
+  });
+
+  it("accountForAuthSubject() never links an existing account by e-mail", async () => {
+    const before = await owner.userAccount.findUniqueOrThrow({ where: { email: "parent.tirane@demo.ssos.test" } });
+    const hijack = await accountForAuthSubject(
+      { externalAuthId: randomUUID(), email: "PARENT.TIRANE@demo.ssos.test" },
+      app,
+    );
+    expect(hijack).toBeNull();
+    const after = await owner.userAccount.findUniqueOrThrow({ where: { email: "parent.tirane@demo.ssos.test" } });
+    expect(after.externalAuthId).toBe(before.externalAuthId);
+    expect(await accountForAuthSubject({ externalAuthId: "", email: "x@demo.ssos.test" }, app)).toBeNull();
   });
 
   it("tenantByJoinCode() / invitationByCode() resolve one code each", async () => {

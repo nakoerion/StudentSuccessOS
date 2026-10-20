@@ -1,34 +1,88 @@
-import { prisma } from "@ssos/db";
-import { afterAll, describe, expect, it } from "vitest";
+import { createAdminClient, prisma } from "@ssos/db";
+import { createClient } from "@supabase/supabase-js";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
-import { verifyCredentials } from "../src/credentials";
-import { hashPassword, verifyPassword } from "../src/password";
+import { normaliseCredentials, sessionUserFromSubject } from "../src/credentials";
+
+const owner = createAdminClient();
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await owner.$disconnect();
 });
 
-describe("password hashing", () => {
-  it("round-trips and rejects a wrong password or a missing hash", async () => {
-    const hash = await hashPassword("s3cret!");
-    expect(hash).toMatch(/^\$2[aby]\$10\$/);
-    expect(await verifyPassword("s3cret!", hash)).toBe(true);
-    expect(await verifyPassword("wrong", hash)).toBe(false);
-    expect(await verifyPassword("s3cret!", null)).toBe(false);
+describe("normaliseCredentials", () => {
+  it("trims and lower-cases the e-mail, keeps the password as typed", () => {
+    expect(normaliseCredentials("  Admin.Tirane@demo.ssos.test ", "Demo1234!")).toEqual({
+      email: "admin.tirane@demo.ssos.test",
+      password: "Demo1234!",
+    });
+  });
+
+  it("rejects malformed input before anything reaches Supabase", () => {
+    expect(normaliseCredentials("not-an-email", "Demo1234!")).toBeNull();
+    expect(normaliseCredentials("a@b.test", "")).toBeNull();
+    expect(normaliseCredentials("a@b.test", "x".repeat(201))).toBeNull();
+    expect(normaliseCredentials(undefined, undefined)).toBeNull();
   });
 });
 
-describe("verifyCredentials (seeded demo accounts, app role)", () => {
-  it("accepts the demo password, case-insensitive e-mail", async () => {
-    const user = await verifyCredentials("  Admin.Tirane@demo.ssos.test ", "Demo1234!");
-    expect(user).toMatchObject({ email: "admin.tirane@demo.ssos.test", locale: "sq" });
-    expect(user?.id).toMatch(/^[0-9a-f-]{36}$/);
+describe("sessionUserFromSubject (mocked account lookup)", () => {
+  it("maps the Supabase subject to user_account via external_auth_id", async () => {
+    const lookup = vi.fn().mockResolvedValue({ id: "acc-1", email: "a@b.test", displayName: "A B", locale: "sq" });
+    const user = await sessionUserFromSubject(
+      { sub: "sb-uuid", email: "a@b.test", user_metadata: { display_name: "A B" } },
+      lookup,
+    );
+    expect(lookup).toHaveBeenCalledWith({ externalAuthId: "sb-uuid", email: "a@b.test", displayName: "A B" });
+    expect(user).toEqual({ id: "acc-1", authId: "sb-uuid", email: "a@b.test", name: "A B", locale: "sq" });
   });
 
-  it("rejects a wrong password, an unknown e-mail and malformed input alike", async () => {
-    expect(await verifyCredentials("admin.tirane@demo.ssos.test", "nope")).toBeNull();
-    expect(await verifyCredentials("nobody@demo.ssos.test", "Demo1234!")).toBeNull();
-    expect(await verifyCredentials("not-an-email", "Demo1234!")).toBeNull();
-    expect(await verifyCredentials(undefined, undefined)).toBeNull();
+  it("returns null without a subject/e-mail or when no account can be linked", async () => {
+    const lookup = vi.fn().mockResolvedValue(null);
+    expect(await sessionUserFromSubject({ sub: "sb-uuid", email: "a@b.test" }, lookup)).toBeNull();
+    expect(await sessionUserFromSubject({ sub: "", email: "a@b.test" }, lookup)).toBeNull();
+    expect(await sessionUserFromSubject({ sub: "sb-uuid", email: null }, lookup)).toBeNull();
+    expect(lookup).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Live check against the real Supabase project + local DB. Needs SUPABASE_URL,
+ * SUPABASE_PUBLISHABLE_KEY and `pnpm auth:seed` (skipped when not configured).
+ */
+const live = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY);
+
+describe.skipIf(!live)("Supabase Auth (live project, seeded demo logins)", () => {
+  const supabase = () =>
+    createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+  it("demo password signs in and the Supabase id resolves to the seeded account", async () => {
+    const { data, error } = await supabase().auth.signInWithPassword({
+      email: "admin.tirane@demo.ssos.test",
+      password: "Demo1234!",
+    });
+    expect(error).toBeNull();
+    const account = await owner.userAccount.findUniqueOrThrow({ where: { email: "admin.tirane@demo.ssos.test" } });
+    expect(account.externalAuthId).toBe(data.user!.id);
+
+    // Real lookup through the app role's SECURITY DEFINER function.
+    const user = await sessionUserFromSubject({ sub: data.user!.id, email: data.user!.email });
+    expect(user).toEqual({
+      id: account.id,
+      authId: data.user!.id,
+      email: "admin.tirane@demo.ssos.test",
+      name: account.displayName,
+      locale: "sq",
+    });
+  });
+
+  it("rejects a wrong password and an unknown e-mail", async () => {
+    const wrong = await supabase().auth.signInWithPassword({ email: "admin.tirane@demo.ssos.test", password: "nope" });
+    expect(wrong.error?.code).toBe("invalid_credentials");
+    const unknown = await supabase().auth.signInWithPassword({ email: "nobody@demo.ssos.test", password: "Demo1234!" });
+    expect(unknown.error?.code).toBe("invalid_credentials");
   });
 });

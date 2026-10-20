@@ -21,7 +21,7 @@ export interface TenantFixture {
 export const COUNTS = { students: 30, teachers: 6, parents: 20, advisors: 1, admins: 1 } as const;
 
 export const DEMO_EMAIL_DOMAIN = "demo.ssos.test";
-/** Password for every seeded demo login (local/demo data only). */
+/** Password for every demo login, set in Supabase Auth by scripts/seed-supabase-auth.ts (demo data only). */
 export const DEMO_PASSWORD = "Demo1234!";
 export const NO_ROLE_EMAIL = `join@${DEMO_EMAIL_DOMAIN}`;
 
@@ -59,3 +59,14 @@ export const TENANTS: readonly TenantFixture[] = [
     invitation: { email: `new.teacher.abudhabi@${DEMO_EMAIL_DOMAIN}`, roleKey: "teacher", code: "INV-AUH-001" },
   },
 ];
+
+/** Kinds of seeded per-tenant demo logins: `${kind}.${emailTag}@demo.ssos.test`. */
+export const DEMO_LOGIN_KINDS = ["admin", "teacher", "parent"] as const;
+
+/** Every seeded demo login e-mail (per-tenant logins plus the no-role join@ account). */
+export function demoLoginEmails(): string[] {
+  return [
+    ...TENANTS.flatMap((t) => DEMO_LOGIN_KINDS.map((kind) => `${kind}.${t.emailTag}@${DEMO_EMAIL_DOMAIN}`)),
+    NO_ROLE_EMAIL,
+  ];
+}
