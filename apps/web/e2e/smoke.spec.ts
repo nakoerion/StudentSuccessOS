@@ -9,6 +9,8 @@ const PASSWORD = "Demo1234!";
 // Reset the demo tenants (the join flow writes to them) and make sure the demo
 // logins exist in the REAL Supabase project and are linked (idempotent).
 test.beforeAll(() => {
+  // Seeding over the Supabase pooler takes a few minutes.
+  test.setTimeout(600_000);
   execSync("pnpm db:seed && pnpm auth:seed", { cwd: REPO_ROOT, stdio: "ignore" });
 });
 
