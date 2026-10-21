@@ -37,7 +37,10 @@ export const TENANT_SCOPED_TABLES: readonly TenantScopedTable[] = [
 
 /**
  * Global tables (no tenant_id). The runtime role gets only the privileges
- * listed here; Most have no RLS; `selfColumn` adds a self-row filter (tenant).
+ * listed here. Every global table has RLS enabled + forced with an explicit policy
+ * (hosted Postgres such as Supabase auto-enables RLS on new tables, and RLS with no
+ * policy silently reads as empty): `selfColumn` -> `tenant_self` row filter (tenant);
+ * otherwise, if readable, `global_read` (SELECT every row); privileges null -> no policy.
  */
 export interface GlobalTable {
   table: string;

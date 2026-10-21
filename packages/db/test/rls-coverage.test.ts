@@ -4,7 +4,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { policyFor, renderRlsSql, rlsMigrationPath } from "../rls/generate";
-import { TENANT_SCOPED_TABLES } from "../rls/tables";
+import { GLOBAL_TABLES, TENANT_SCOPED_TABLES } from "../rls/tables";
 import { appClient } from "./helpers";
 
 const tenantModels = Prisma.dmmf.datamodel.models.filter((m) => m.fields.some((f) => f.name === "tenantId"));
@@ -72,5 +72,30 @@ describe("RLS in the live database", () => {
       expect({ table: r.table, rls: r.rls, forced: r.forced }).toEqual({ table: r.table, rls: true, forced: true });
       expect(r.policies ?? []).toContain("tenant_isolation");
     }
+  });
+
+  it("global tables have explicit forced RLS, and the readable ones return rows to the app role", async () => {
+    const rows = await app.$queryRaw<{ table: string; rls: boolean; forced: boolean }[]>`
+      SELECT c.relname AS table, c.relrowsecurity AS rls, c.relforcerowsecurity AS forced
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname = ANY(${GLOBAL_TABLES.map((t) => t.table)})`;
+    expect(rows.map((r) => r.table).sort()).toEqual(GLOBAL_TABLES.map((t) => t.table).sort());
+    for (const r of rows) expect(r).toEqual({ table: r.table, rls: true, forced: true });
+
+    // Without a tenant selected: lookup tables are fully readable (regression: on Supabase
+    // auto-enabled RLS with no policy made `permission` read as empty).
+    expect(await app.permission.count()).toBeGreaterThan(0);
+    expect(await app.countryPack.count()).toBeGreaterThan(0);
+    // System roles -> grants -> permissions resolve as the app role (the loadViewer shape).
+    const roles = await app.role.findMany({
+      where: { tenantId: null },
+      select: { key: true, rolePermissions: { select: { permission: { select: { key: true } } } } },
+    });
+    expect(roles.length).toBeGreaterThan(0);
+    expect(roles.flatMap((r) => r.rolePermissions).length).toBeGreaterThan(0);
+    // ...but still read-only, and tenant/user_account stay closed.
+    await expect(app.permission.create({ data: { key: "rls.probe", description: "x" } })).rejects.toThrow();
+    expect(await app.tenant.count()).toBe(0);
+    await expect(app.userAccount.count()).rejects.toThrow();
   });
 });
