@@ -1,6 +1,7 @@
 import type { MembershipRow } from "@ssos/db";
 import { describe, expect, it } from "vitest";
 
+import { resolveTenantLocale } from "@ssos/country-packs";
 import { chooseLocale, dirFor, negotiateLocale } from "../i18n/config";
 import { groupMemberships, landingPath, membershipForSlug, resolveLanding } from "../lib/tenancy";
 
@@ -9,12 +10,13 @@ const row = (over: Partial<MembershipRow>): MembershipRow => ({
   tenantSlug: "school-a",
   tenantName: "School A",
   defaultLocale: "sq",
+  countryCode: "AL",
   personId: "p-a",
   roleKey: "teacher",
   status: "active",
   ...over,
 });
-const B = { tenantId: "t-b", tenantSlug: "school-b", tenantName: "School B", defaultLocale: "en", personId: "p-b" };
+const B = { tenantId: "t-b", tenantSlug: "school-b", tenantName: "School B", defaultLocale: "en", countryCode: "AE", personId: "p-b" };
 
 describe("resolveLanding", () => {
   it("0 memberships -> Join your school", () => {
@@ -76,6 +78,17 @@ describe("locale choice", () => {
     expect(chooseLocale({ account: "sq", acceptLanguage: "ar" })).toBe("sq");
     expect(chooseLocale({ acceptLanguage: "de-DE,ar;q=0.8,en;q=0.5" })).toBe("ar");
     expect(chooseLocale({})).toBe("en");
+  });
+  it("tenant default comes from the country pack when the tenant's own locale is unusable", () => {
+    const tenantDefault = (tenantLocale: string | null, countryCode: string) =>
+      resolveTenantLocale({ tenantLocale, countryCode });
+    expect(chooseLocale({ tenantDefault: tenantDefault("sq", "AL"), acceptLanguage: "en" })).toBe("sq");
+    expect(chooseLocale({ tenantDefault: tenantDefault(null, "AL"), acceptLanguage: "en" })).toBe("sq");
+    expect(chooseLocale({ tenantDefault: tenantDefault("ar", "AL"), acceptLanguage: "en" })).toBe("sq");
+    expect(chooseLocale({ tenantDefault: tenantDefault("xx", "AE"), acceptLanguage: "sq" })).toBe("en");
+    expect(chooseLocale({ tenantDefault: tenantDefault("ar", "AE") })).toBe("ar");
+    // Unknown pack and no valid locale -> falls through to account / Accept-Language / en.
+    expect(chooseLocale({ tenantDefault: tenantDefault("xx", "ZZ"), acceptLanguage: "ar" })).toBe("ar");
   });
 
   it("negotiates base tags and only RTL for ar", () => {

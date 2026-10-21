@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers";
 
 import { getMemberships } from "../lib/session";
 import { getSessionUser } from "@ssos/auth";
+import { resolveTenantLocale } from "@ssos/country-packs";
 import { chooseLocale, LOCALE_COOKIE, type Locale } from "./config";
 
 /** `/t/<slug>/...` -> slug (the middleware forwards the pathname as a header). */
@@ -24,7 +25,8 @@ export async function resolveRequestLocale(): Promise<Locale> {
     const slug = tenantSlugFromPath(headerStore.get("x-ssos-pathname"));
     // Tenant in the URL wins; otherwise a user with exactly one school gets its default.
     const current = slug ? groups.find((g) => g.slug === slug) : groups.length === 1 ? groups[0] : undefined;
-    tenantDefault = current?.defaultLocale ?? null;
+    // The tenant's default_locale if its country pack supports it, else the pack's primary language.
+    tenantDefault = current ? resolveTenantLocale({ tenantLocale: current.defaultLocale, countryCode: current.countryCode }) : null;
   }
   return chooseLocale({ tenantDefault, account: user?.locale, acceptLanguage });
 }

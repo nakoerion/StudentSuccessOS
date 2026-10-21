@@ -5,7 +5,7 @@
  *
  *   pnpm db:seed
  */
-import { getCountryPack } from "@ssos/country-packs";
+import { getCountryPack, packDefaultLocale } from "@ssos/country-packs";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
 import { createAdminClient } from "../src/client";
@@ -31,6 +31,10 @@ async function seedGlobals(tx: Tx): Promise<Record<SystemRoleKey, string>> {
       update: { name: pack.name, version: pack.version, data },
     });
     const packRow = await tx.countryPack.findUniqueOrThrow({ where: { code } });
+    // Drop pack-default scales the pack no longer defines (tenant overrides are untouched).
+    await tx.gradeScale.deleteMany({
+      where: { countryPackId: packRow.id, tenantId: null, key: { notIn: pack.gradingScales.map((s) => s.key) } },
+    });
     for (const scale of pack.gradingScales) {
       const existing = await tx.gradeScale.findFirst({
         where: { countryPackId: packRow.id, tenantId: null, key: scale.key },
@@ -126,8 +130,9 @@ async function seedTenant(
       slug: f.slug,
       name: f.name,
       countryPackId: pack.id,
-      defaultLocale: f.defaultLocale,
-      timezone: f.timezone,
+      // Locale and timezone come from the country pack, never from the fixture.
+      defaultLocale: packDefaultLocale(packData),
+      timezone: packData.defaultTimezone,
       joinCode: f.joinCode,
     },
   });
@@ -266,10 +271,10 @@ async function seedTenant(
         id: seedId("user_account", email),
         email,
         displayName: person.displayName,
-        locale: f.defaultLocale,
+        locale: packDefaultLocale(packData),
       },
       // external_auth_id is NOT touched: the Supabase link survives re-seeding.
-      update: { displayName: person.displayName, locale: f.defaultLocale },
+      update: { displayName: person.displayName, locale: packDefaultLocale(packData) },
     });
     await tx.person.update({ where: { id: person.id }, data: { userAccountId: account.id } });
   }

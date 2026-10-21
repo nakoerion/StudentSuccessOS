@@ -17,7 +17,7 @@ school", school dashboard and roster, `sq`/`en`/`ar` with RTL, `@ssos/ui` tokens
 | `packages/auth` | `@ssos/auth` | Auth behind a small interface (`getSessionUser`, `signInWithPassword`, `signOutUser`, `authHandlers`, `@ssos/auth/middleware`); Supabase Auth (cookie sessions via `@supabase/ssr`) |
 | `packages/db` | `@ssos/db` | Prisma schema, migrations, RLS generator, seed, `withTenant`, tests |
 | `packages/config` | `@ssos/config` | Shared `tsconfig` presets (strict) and ESLint flat config |
-| `packages/country-packs` | `@ssos/country-packs` | Typed `AL` / `AE` packs — **placeholder values** |
+| `packages/country-packs` | `@ssos/country-packs` | Researched, source-cited `AL` / `AE` packs, Zod-validated at import (see "Country packs") |
 | `packages/ui` | `@ssos/ui` | Design tokens (CSS variables, light/dark) + shadcn-style Button, Input, Card, Table, Badge, Tabs, Select |
 
 ## Setup (from clean)
@@ -80,7 +80,8 @@ Rules enforced on the server:
 - Roster scope comes from permission keys (`roster.read` → whole roster;
   `guardianship.read_own` → only students the viewer is guardian of), applied in the SQL
   `WHERE` — a parent cannot widen it with `?role=` or `?q=`.
-- Locale: `NEXT_LOCALE` cookie (set by the switcher) > the tenant's `default_locale`
+- Locale: `NEXT_LOCALE` cookie (set by the switcher) > the tenant's default (`default_locale` if its
+  country pack supports it, else the pack's `defaultLanguages.primary`)
   > account locale > `Accept-Language` > `en`. `ar` renders `<html dir="rtl" lang="ar">`;
   components use logical properties only (`ps/pe/ms/me`, `start/end`).
 - Theme: `ssos-theme` cookie (`light`/`dark`), applied server-side as `class="dark"`.
@@ -152,6 +153,25 @@ this environment has no IPv6, so:
 
 The pooler host is region-specific (`SUPABASE_POOLER_HOST`, default
 `aws-1-ap-southeast-1.pooler.supabase.com`; Dashboard → Connect shows it).
+
+## Country packs
+
+`packages/country-packs/src/packs/{al,ae}.ts` hold the country data; `src/schema.ts` is the
+Zod schema the types are inferred from. Each pack covers five dimensions — `grades`
+(stages with grade codes and typical ages), `gradingScales`, `examCalendars` (academic
+year, terms, national exams with months/windows; discontinued exams are kept with
+`status: "discontinued"`), `consentAges` (data processing, medical, age of majority) and
+`defaultLanguages` (primary + secondary) — and a `sources` array. Every fact cites
+`sourceIds`; validation fails on an unknown or uncited source, overlapping grades, bands
+outside the scale or disagreeing with the pass mark, exam windows outside their months,
+consent ages above majority, or a primary language the pack does not offer. Packs are
+validated at import, so a bad edit breaks `pnpm test`, `pnpm build` and `pnpm db:seed`.
+
+The seed stores the validated pack in `country_pack.data` and sets each tenant's
+`default_locale` (= `defaultLanguages.primary`) and `timezone` from its pack.
+`ssos_user_memberships` returns the tenant's `country_code`, and the web app resolves the
+tenant default with `resolveTenantLocale` from `@ssos/country-packs`. Bump `version` and
+`researchedAt` whenever pack data changes.
 
 ## Row-level security
 
@@ -250,6 +270,6 @@ All names are synthetic combinations; no real people.
 ## Deferred
 
 Approving pending join requests (an admin UI; the dashboard only shows the count);
-password reset / sign-up; researched country-pack values;
+password reset / sign-up; letter-grade bands for the UAE scale and Cycle 1–2 scales (not yet in a cited source);
 invite outreach; CSV/OneRoster import; RBAC service layer and tenant custom roles;
 audit middleware; Storybook; CI; OpenAPI.

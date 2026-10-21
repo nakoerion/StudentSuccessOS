@@ -9,6 +9,7 @@ export interface TenantMembership {
   slug: string;
   name: string;
   defaultLocale: string;
+  countryCode: string;
   personId: string;
   activeRoles: string[];
   pendingRoles: string[];
@@ -31,6 +32,7 @@ export function groupMemberships(rows: readonly MembershipRow[]): TenantMembersh
         slug: r.tenantSlug,
         name: r.tenantName,
         defaultLocale: r.defaultLocale,
+        countryCode: r.countryCode,
         personId: r.personId,
         activeRoles: [],
         pendingRoles: [],
