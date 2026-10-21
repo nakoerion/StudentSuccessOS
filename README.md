@@ -29,7 +29,9 @@ Requirements: Node 22+, pnpm (the repo pins `pnpm@10.34.7` via `packageManager`)
 export HOME=/work/home            # npm/corepack/prisma caches otherwise land in /home
 cd /work/sso
 
-bash scripts/db-up.sh             # start Postgres 16, create roles + database, create .env
+source /etc/profile.d/cto-env-vars.sh   # SUPABASE_DB_URL + SUPABASE_* keys
+bash scripts/supabase-db-up.sh    # Supabase Postgres: create ssos_owner/ssos_app, write .env (see "Supabase Postgres")
+# (offline alternative: bash scripts/db-up.sh — local Postgres 16, roles + database + .env)
 pnpm install                      # also runs `prisma generate`
 pnpm db:migrate                   # prisma migrate deploy (as ssos_owner)
 pnpm db:seed                      # deterministic; safe to re-run
@@ -49,7 +51,7 @@ pnpm --filter @ssos/web start     # http://localhost:3000  (or `pnpm --filter @s
 for which key is client-safe. Never commit real values. The web scripts load the
 repo-root `.env` via `dotenv-cli`.
 
-**Auth = Supabase, data = local Postgres.** Supabase Auth stores passwords and
+**Auth = Supabase Auth, data = Supabase Postgres** (or local Postgres offline). Supabase Auth stores passwords and
 issues the cookie session; `apps/web/middleware.ts` validates/refreshes it on
 every page request and sends visitors without a session to `/sign-in`. The
 Supabase user id (`auth.users.id`) is stored in `user_account.external_auth_id`;
@@ -117,6 +119,39 @@ just run `pnpm db:migrate && pnpm db:seed` again.
 See `.env.example`. Prisma Migrate uses `DATABASE_ADMIN_URL` automatically
 (`directUrl` in `schema.prisma`); the seed uses `createAdminClient()`.
 Passwords there are local-dev only.
+
+### Supabase Postgres
+
+The shared database is the owner's Supabase project. `bash scripts/supabase-db-up.sh`
+(idempotent) connects with `SUPABASE_DB_URL` (the `postgres` role) and:
+
+- creates `ssos_owner` (BYPASSRLS) and `ssos_app` (NOBYPASSRLS), asserts neither is a
+  superuser, grants `ssos_owner` CREATE on `public` (+ CREATE on the database, needed by the
+  init migration's `CREATE SCHEMA IF NOT EXISTS`) and `ssos_app` USAGE on `public`. All
+  table/function grants for `ssos_app` come from the generated RLS migrations, exactly as locally;
+- keeps the role passwords outside git in `/home/team/shared/.secrets/sso-supabase-roles.env`
+  (chmod 600; override with `SSOS_SUPABASE_SECRETS`), reused on every run;
+- writes `DATABASE_URL` / `DATABASE_ADMIN_URL` (+ `SUPABASE_*`) into `.env`.
+
+**Why not run as `postgres`?** Supabase's `postgres` role has BYPASSRLS — an app connected
+as it would see every tenant. Runtime is always `ssos_app`; `packages/db/test/isolation.test.ts`
+fails if it is not.
+
+**Why `ssos_owner` creates the tables:** Supabase's default privileges grant ALL on new
+`public` tables created *by `postgres`* to `anon`/`authenticated` (the Data API). Tables
+created by `ssos_owner` get no such grants, so the publishable key cannot reach SSOS data
+through PostgREST/GraphQL; `isolation.test.ts` checks this too.
+
+**Connections.** The direct host `db.<ref>.supabase.co` is IPv6-only (no IPv4 add-on), and
+this environment has no IPv6, so:
+
+| Use | Connection | Why |
+| --- | --- | --- |
+| Runtime (`DATABASE_URL`, `ssos_app`) | Transaction pooler `:6543`, `?pgbouncer=true&connection_limit=5` | IPv4; scales to many short app connections. Safe because tenant context is only ever set with `set_config(…, true)` inside a transaction. |
+| Migrate/seed (`DATABASE_ADMIN_URL`, `ssos_owner`) | Direct host if it resolves, else session pooler `:5432` | Prisma Migrate needs a session connection (advisory locks, prepared statements); the session pooler is Supabase's IPv4 equivalent of direct. |
+
+The pooler host is region-specific (`SUPABASE_POOLER_HOST`, default
+`aws-1-ap-southeast-1.pooler.supabase.com`; Dashboard → Connect shows it).
 
 ## Row-level security
 

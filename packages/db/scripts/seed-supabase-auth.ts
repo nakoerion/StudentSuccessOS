@@ -8,8 +8,8 @@
  * is reset to the demo password; the link is (re)written every run.
  *
  * Needs SUPABASE_URL and SUPABASE_SECRET_KEY (server-only service key) plus
- * DATABASE_ADMIN_URL. Only the AUTH side lives in Supabase — the database stays
- * local (Postgres 16) for now.
+ * DATABASE_ADMIN_URL (ssos_owner — Supabase Postgres via scripts/supabase-db-up.sh,
+ * or local Postgres 16). user_account is never touched through Supabase's own roles.
  *
  * Demo credentials (synthetic, demo data only), password `Demo1234!`:
  *   admin.tirane@demo.ssos.test     teacher.tirane@demo.ssos.test     parent.tirane@demo.ssos.test

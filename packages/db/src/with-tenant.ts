@@ -39,6 +39,6 @@ export async function withTenant<T>(
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true), set_config('app.user_id', ${options.userId ?? ""}, true)`;
       return fn(tx);
     },
-    { timeout: options.timeoutMs ?? 10_000 },
+    { timeout: options.timeoutMs ?? 60_000 },
   );
 }

@@ -29,7 +29,7 @@ import {
 export const CURRENT_TENANT_SQL = "NULLIF(current_setting('app.tenant_id', true), '')::uuid";
 
 /** The latest generated RLS migration (earlier ones stay as history). */
-export const DEFAULT_RLS_MIGRATION = "20261020000100_rls";
+export const DEFAULT_RLS_MIGRATION = "20261020000200_rls_global_tables";
 
 /** THE template. Every tenant-scoped table goes through this one function. */
 export function policyFor({ table, scope }: TenantScopedTable): string {
@@ -53,17 +53,35 @@ export function policyFor({ table, scope }: TenantScopedTable): string {
   return lines.join("\n");
 }
 
-/** Global tables: explicit privileges, optionally a self-row filter on the tenant id. */
+/**
+ * Global tables: explicit privileges and an explicit RLS state.
+ *
+ * RLS is always ENABLED + FORCED and the readable rows are named by a policy, so the
+ * result does not depend on the host. (Supabase's `ensure_rls` event trigger enables
+ * RLS on every new public table; with no policy that silently means "no rows" for the
+ * app role — e.g. `permission` reads came back empty and nested role→permission
+ * selects failed. Locally RLS stayed off, so the gap only showed on Supabase.)
+ *
+ * - selfColumn: SELECT only the current tenant's own row (`tenant_self`).
+ * - privileges without selfColumn: SELECT every row (`global_read`, app role only).
+ *   Write privileges are never granted a policy here, so writes stay denied.
+ * - privileges null: no grant and no policy -> no access (SECURITY DEFINER only).
+ */
 export function globalTableSql({ table, privileges, selfColumn }: GlobalTable): string {
   const lines = [`REVOKE ALL ON "${table}" FROM ${APP_ROLE};`];
   if (privileges) lines.push(`GRANT ${privileges} ON "${table}" TO ${APP_ROLE};`);
-  lines.push(`DROP POLICY IF EXISTS tenant_self ON "${table}";`);
+  lines.push(
+    `ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY;`,
+    `ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY;`,
+    `DROP POLICY IF EXISTS tenant_self ON "${table}";`,
+    `DROP POLICY IF EXISTS global_read ON "${table}";`,
+  );
   if (selfColumn) {
     lines.push(
-      `ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY;`,
-      `ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY;`,
       `CREATE POLICY tenant_self ON "${table}" FOR SELECT USING (${selfColumn} = ${CURRENT_TENANT_SQL});`,
     );
+  } else if (privileges) {
+    lines.push(`CREATE POLICY global_read ON "${table}" FOR SELECT TO ${APP_ROLE} USING (true);`);
   }
   return lines.join("\n");
 }
