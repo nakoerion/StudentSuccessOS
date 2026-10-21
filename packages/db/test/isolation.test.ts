@@ -295,6 +295,7 @@ describe("pre-tenant lookups", () => {
         tenantId: TENANT_B,
         tenantSlug: "demo-school-abu-dhabi",
         defaultLocale: "en",
+        countryCode: "AE",
         roleKey: "admin",
         status: "active",
       }),

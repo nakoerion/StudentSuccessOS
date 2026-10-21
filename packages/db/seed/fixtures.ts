@@ -6,9 +6,8 @@ import { ALBANIAN, EMIRATI, LEVANTINE_EGYPTIAN, type NamePool, SOUTH_ASIAN, WEST
 export interface TenantFixture {
   slug: string;
   name: string;
+  /** Country pack; the tenant's default_locale and timezone come from it. */
   countryCode: CountryCode;
-  defaultLocale: string;
-  timezone: string;
   joinCode: string;
   /** Prefix for demo login emails, e.g. "tirane" -> admin.tirane@demo.ssos.test */
   emailTag: string;
@@ -30,8 +29,6 @@ export const TENANTS: readonly TenantFixture[] = [
     slug: "liceu-demo-tirane",
     name: "Liceu Demo Tiranë",
     countryCode: "AL",
-    defaultLocale: "sq",
-    timezone: "Europe/Tirane",
     joinCode: "TIR-4821",
     emailTag: "tirane",
     pools: [ALBANIAN],
@@ -46,8 +43,6 @@ export const TENANTS: readonly TenantFixture[] = [
     slug: "demo-school-abu-dhabi",
     name: "Demo School Abu Dhabi",
     countryCode: "AE",
-    defaultLocale: "en",
-    timezone: "Asia/Dubai",
     joinCode: "AUH-7315",
     emailTag: "abudhabi",
     pools: [EMIRATI, LEVANTINE_EGYPTIAN, SOUTH_ASIAN, WESTERN_EXPAT],

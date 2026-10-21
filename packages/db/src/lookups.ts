@@ -14,6 +14,8 @@ export interface MembershipRow {
   tenantSlug: string;
   tenantName: string;
   defaultLocale: string;
+  /** Country-pack code of the tenant (e.g. "AL"), for pack-driven defaults. */
+  countryCode: string;
   personId: string;
   /** NULL when the person exists in the tenant but holds no role. */
   roleKey: string | null;
@@ -58,6 +60,7 @@ export async function userMemberships(userId: string, client: PrismaClient = def
         tenant_slug: string;
         tenant_name: string;
         default_locale: string;
+        country_code: string;
         person_id: string;
         role_key: string | null;
         status: MembershipStatus | null;
@@ -69,6 +72,7 @@ export async function userMemberships(userId: string, client: PrismaClient = def
     tenantSlug: r.tenant_slug,
     tenantName: r.tenant_name,
     defaultLocale: r.default_locale,
+    countryCode: r.country_code,
     personId: r.person_id,
     roleKey: r.role_key,
     status: r.status,
