@@ -239,6 +239,33 @@ Migration `20261026000000_academic_record` (tables + integrity) and generated
 - Trigger `ssos_check_grade_scale_tenant`: a `grade_scale_id` on course/grade_entry/
   term_grade/annual_grade must be a pack default or the same tenant's override.
 
+### Academic-year setup wizard
+
+`runSetupWizard(ownerDb, { tenantId })` in `packages/db/src/setup-wizard.ts`
+(exported from `@ssos/db`) builds a tenant's academic year from its country pack:
+`academic_year` → `term` → `subject` → `course` (subject × grade) → `class_section`
+(one per class unit) → `enrollment` (each student into every section of their class)
+→ `teacher_assignment` (subjects round-robin over teachers, one primary per section)
+→ `assessment_category` (weighted, summing to 100 per course; `course.grade_scale_id`
+is the pack scale whose `appliesToGrades` covers the grade, a tenant override winning).
+
+- `planAcademicYear` is pure (pack + roster → plan); `runSetupWizard` loads the roster
+  and applies the plan as the **owner** role, filtering every query by `tenant_id`.
+- **Idempotent**: inserts use the tables' unique keys with `ON CONFLICT DO NOTHING`, so a
+  re-run creates nothing and never overwrites what a school has edited. `result.created`
+  reports rows inserted, `result.totals` the rows in the year.
+- Never writes `term_grade` / `annual_grade` (derived) and emits no `event` rows.
+- No country branches: everything comes from pack data. Where the pack has no data
+  yet, the wizard uses **placeholders** and lists them in `result.placeholders`:
+  - `terms` — the pack calendar has no terms (AL 2026-2027): the year is split into
+    2 equal "Period" terms (`period-1`, `period-2`). Real AL term dates belong in the pack.
+  - `subjects` — the pack has no `subjects`: a generic 8-subject catalog
+    (`PLACEHOLDER_SUBJECTS`, names in sq/en/ar, `pack_code`/`pack_key` NULL). Packs may
+    now declare `subjects` (cited); then `pack_code`/`pack_key` are set.
+  - `assessment_categories` — the scale has no `defaultCategories`: Coursework 40 /
+    Tests 30 / Final assessment 30 (`PLACEHOLDER_CATEGORIES`). Packs may now declare
+    `gradingScales[].defaultCategories` (cited via `categoriesSourceIds`, weights sum to 100).
+
 ## Seed
 
 `pnpm db:seed` — deterministic (UUIDv5-style ids, seeded PRNG, hand-written name
@@ -252,9 +279,10 @@ pools), re-runnable (each demo tenant is rebuilt; globals are upserted).
 Per tenant: 30 students (10 in each of 3 classes), 6 teachers, 20 parents
 (parents P-001…P-010 have two children, P-011…P-020 one), 1 advisor, 1 admin =
 58 persons, 58 role assignments, 30 guardianships, 30 consents, 3 classes,
-2 settings, 1 invitation, 1 audit entry, plus (academic record, `seed/academic.ts`)
-1 academic year from the pack's exam calendar, its terms (pack terms; if the pack
-defines none, the year is split into 2 placeholder periods), and 8 standard subjects.
+2 settings, 1 invitation, 1 audit entry, plus a full academic year built by the
+**setup wizard** (below): 1 academic year, its terms (AL 2, AE 3), 8 subjects,
+24 courses, 24 class sections, 240 enrollments, 24 teacher assignments and
+72 assessment categories.
 Globals: 2 country packs, 2 grade scales,
 6 system roles (Student, Parent, Teacher, Advisor, Trainer, Admin), 8 permissions,
 and 4 demo `concept` + 3 `concept_edge` rows per pack (placeholder codes, not official).

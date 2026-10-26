@@ -92,6 +92,34 @@ describe("validation fails loudly on malformed packs", () => {
     bad.defaultLanguages.primary = "ar";
     expect(() => validateCountryPack(bad)).toThrow(/"ar" is not in supportedLocales/);
   });
+
+  it("accepts optional subjects and default categories, and rejects bad ones", () => {
+    const src = AL_INPUT.sources[0]!.id;
+    const good = clone(AL_INPUT);
+    good.subjects = [{ key: "matematike", code: "MAT", name: "Matematikë", nameEn: "Mathematics", grades: ["10"], sourceIds: [src] }];
+    good.gradingScales[0]!.defaultCategories = [
+      { key: "oral", name: "Me gojë", nameEn: "Oral", weight: 40 },
+      { key: "written", name: "Me shkrim", nameEn: "Written", weight: 60 },
+    ];
+    good.gradingScales[0]!.categoriesSourceIds = [src];
+    expect(validateCountryPack(good).subjects).toHaveLength(1);
+
+    const badWeights = clone(good);
+    badWeights.gradingScales[0]!.defaultCategories![0]!.weight = 30;
+    expect(() => validateCountryPack(badWeights)).toThrow(/weights must sum to 100 \(got 90\)/);
+
+    const uncited = clone(good);
+    delete uncited.gradingScales[0]!.categoriesSourceIds;
+    expect(() => validateCountryPack(uncited)).toThrow(/defaultCategories need categoriesSourceIds/);
+
+    const dupe = clone(good);
+    dupe.subjects!.push({ ...dupe.subjects![0]!, key: "matematike-2" });
+    expect(() => validateCountryPack(dupe)).toThrow(/duplicate subject code "MAT"/);
+
+    const badGrade = clone(good);
+    badGrade.subjects![0]!.grades = ["13"];
+    expect(() => validateCountryPack(badGrade)).toThrow(/unknown grade "13"/);
+  });
 });
 
 describe("resolveTenantLocale", () => {
