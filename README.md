@@ -167,11 +167,61 @@ outside the scale or disagreeing with the pass mark, exam windows outside their 
 consent ages above majority, or a primary language the pack does not offer. Packs are
 validated at import, so a bad edit breaks `pnpm test`, `pnpm build` and `pnpm db:seed`.
 
+Calendars may also give per-term `schoolDays` (validated to sum to the year's
+`schoolDays`), `breaks` (each inside one term), term `nameEn`, and `notes` on scope.
+Any consent rule, grading scale or calendar can carry
+`needsConfirmation: { by: "local-counsel" | "school", note }`; `packConfirmationItems(pack)`
+lists them so the UI/reports can show what is still unconfirmed.
 The seed stores the validated pack in `country_pack.data` and sets each tenant's
-`default_locale` (= `defaultLanguages.primary`) and `timezone` from its pack.
+`default_locale` (= `defaultLanguages.primary`, unless the tenant fixture sets its own
+supported `defaultLocale`) and `timezone` from its pack.
 `ssos_user_memberships` returns the tenant's `country_code`, and the web app resolves the
 tenant default with `resolveTenantLocale` from `@ssos/country-packs`. Bump `version` and
 `researchedAt` whenever pack data changes.
+
+### Pack policy (owner decisions, 2026-10-26)
+
+These are product defaults built from law-firm summaries and official pages — **not legal
+advice**. Items marked *confirm with local counsel* must be checked by a lawyer licensed in
+that country before we rely on them; *needs school confirmation* means each school confirms
+or replaces the default for its own curriculum.
+
+| | Albania (AL 1.1.0) | UAE (AE 1.1.0) |
+| --- | --- | --- |
+| Default UI language | `sq` | **`ar` (RTL)**, `en` as the second language/toggle; a tenant may set `default_locale = "en"` |
+| Data-consent age (`consentAges.dataProcessing.minAge`) | **16** — guardian below 16 *(confirm with local counsel)* | **16** — guardian below 16 *(confirm with local counsel)* |
+| Medical-consent age (`consentAges.medical.minAge`) | **18** — guardian below 18 *(confirm with local counsel)* | **18** — guardian below 18 *(confirm with local counsel)* |
+| Year structure | 2 semesters; **no authoritative dates yet** → the wizard creates 2 placeholder periods *(needs school confirmation)* | 3 MOE terms 2026-27 *(needs school confirmation for non-MOE private schools)* |
+| Grading | 4–10, pass 5 (ASCAP) | 0–100, pass 60 — a configurable default per tenant/curriculum, **not** an authoritative Ministry scale *(needs school confirmation)* |
+
+- **UAE language.** Government schools teach all subjects in Arabic, with English as a second
+  language for technical/scientific subjects; private schools may follow IB/British/American
+  and other curricula but must offer Arabic as a second language (u.ae, *Curricula and
+  language of instruction*). Hence Arabic is the pack default; many international private
+  schools work in English and switch their tenant's `default_locale` to `en`. The demo
+  **Demo School Abu Dhabi** does exactly that (fixture `defaultLocale: "en"`), so the demo
+  shows the toggle; with no override an AE tenant opens in Arabic.
+- **Data-consent age 16 in both packs.** Albania: Law 124/2024 Art. 8(6) — a minor's own consent
+  to online services counts from 16; below 16 a parent/guardian consents (Law 124/2024 via
+  idp.al; DLA Piper). UAE: the PDPL (Federal Decree-Law 45/2021) sets no age of digital
+  consent (EdLaw); the Child Digital Safety Law (Federal Decree-Law 26/2025) requires
+  verifiable parental consent below 13 (Clyde & Co; u.ae). 16 is stricter than both and
+  satisfies both. **For a school the lawful basis for processing student data is usually the
+  school's own legal duty, not the child's consent** — confirm with counsel in each country.
+- **Medical consent 18 in both packs.** Albania: guardian consent below 18; the likely governing
+  text is Law 10107/2009 on health care, but its consent rule is unconfirmed, and a
+  non-authoritative industry blog suggests 16 may sometimes apply — we do **not** default to
+  16 until Albanian counsel confirms. Health data is sensitive data under Law 124/2024.
+  UAE: Federal Decree-Law 4/2016 on Medical Liability, Art. 5 (18+ competent to consent).
+- **UAE 2026-27 calendar (MOE).** Term 1 31 Aug–11 Dec 2026 (67 school days), Term 2
+  4 Jan–2 Apr 2027 (60), Term 3 12 Apr–2 Jul 2027 (58) = 185 days; Term 1 mid-term break
+  12–16 Oct 2026 per the MOE document (some press gives 12–18 Oct counting weekends — we use
+  MOE). Not covered: private schools on Indian, Bangladeshi or Pakistani curricula; other
+  non-MOE private schools may split the mid-term break differently (not in Sharjah).
+  Sources: moe.gov.ae calendar announcement; Gulf Today's report of the MOE day counts.
+- **UAE grading.** No single authoritative Ministry scale was found (only vendor/news
+  pages), so the 0–100 / pass-60 scale is a starting default. Schools set their own scale per
+  curriculum via tenant grade scales and the `grading_scale` tenant setting.
 
 ## Row-level security
 
@@ -258,7 +308,10 @@ is the pack scale whose `appliesToGrades` covers the grade, a tenant override wi
 - No country branches: everything comes from pack data. Where the pack has no data
   yet, the wizard uses **placeholders** and lists them in `result.placeholders`:
   - `terms` — the pack calendar has no terms (AL 2026-2027): the year is split into
-    2 equal "Period" terms (`period-1`, `period-2`). Real AL term dates belong in the pack.
+    2 equal "Period" terms (`period-1`, `period-2`) standing in for Albania's 2 semesters.
+    Real AL semester dates belong in the pack once a school confirms them. AE has no
+    placeholder terms: it gets the 3 real MOE 2026-27 terms (named in the tenant's
+    locale — `nameEn` for non-Arabic tenants).
   - `subjects` — the pack has no `subjects`: a generic 8-subject catalog
     (`PLACEHOLDER_SUBJECTS`, names in sq/en/ar, `pack_code`/`pack_key` NULL). Packs may
     now declare `subjects` (cited); then `pack_code`/`pack_key` are set.
@@ -274,7 +327,7 @@ pools), re-runnable (each demo tenant is rebuilt; globals are upserted).
 | Tenant | Pack | Locale | Timezone | Join code | Sample invitation code |
 | --- | --- | --- | --- | --- | --- |
 | Liceu Demo Tiranë (`liceu-demo-tirane`) | AL | sq | Europe/Tirane | `TIR-4821` | `INV-TIR-001` |
-| Demo School Abu Dhabi (`demo-school-abu-dhabi`) | AE | en | Asia/Dubai | `AUH-7315` | `INV-AUH-001` |
+| Demo School Abu Dhabi (`demo-school-abu-dhabi`) | AE | en (tenant override; pack default `ar`) | Asia/Dubai | `AUH-7315` | `INV-AUH-001` |
 
 Per tenant: 30 students (10 in each of 3 classes), 6 teachers, 20 parents
 (parents P-001…P-010 have two children, P-011…P-020 one), 1 advisor, 1 admin =
