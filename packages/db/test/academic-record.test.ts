@@ -4,7 +4,8 @@
 import type { PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { DEMO_CONCEPTS, DEMO_SUBJECTS } from "../seed/academic";
+import { DEMO_CONCEPTS } from "../seed/academic";
+import { PLACEHOLDER_SUBJECTS } from "../src/setup-wizard";
 import { withTenant } from "../src/with-tenant";
 import { appClient, ownerClient, Rollback, TENANT_A, TENANT_B } from "./helpers";
 
@@ -38,7 +39,7 @@ describe("academic record: tenant isolation", () => {
       );
       expect(r.years).toHaveLength(1);
       expect(r.terms.length).toBeGreaterThanOrEqual(2);
-      expect(r.subjects).toHaveLength(DEMO_SUBJECTS.length);
+      expect(r.subjects).toHaveLength(PLACEHOLDER_SUBJECTS.length);
       for (const rows of [r.years, r.terms, r.subjects]) {
         expect(new Set(rows.map((x) => x.tenantId))).toEqual(new Set([tenantId]));
       }
@@ -102,7 +103,7 @@ describe("academic record: tenant isolation", () => {
           const year = await tx.academicYear.findFirstOrThrow();
           const subject = await tx.subject.findFirstOrThrow({ where: { code: "MATH" } });
           const course = await tx.course.create({
-            data: { tenantId: TENANT_A, academicYearId: year.id, subjectId: subject.id, code: "MATH-10", name: "Math 10" },
+            data: { tenantId: TENANT_A, academicYearId: year.id, subjectId: subject.id, code: "MATH-PROBE", name: "Math Probe" },
           });
           const section = await tx.classSection.create({
             data: { tenantId: TENANT_A, courseId: course.id, code: "A", name: "Math 10 A" },
@@ -113,13 +114,15 @@ describe("academic record: tenant isolation", () => {
           await tx.event.create({
             data: { tenantId: TENANT_A, type: "enrollment.created", subjectPersonId: student.id, payload: { course: "MATH-10" } },
           });
-          expect(await tx.enrollment.count()).toBe(1);
+          expect(
+            await tx.enrollment.findFirst({ where: { classSectionId: section.id, studentPersonId: student.id } }),
+          ).not.toBeNull();
           throw new Rollback();
         },
         { client: app },
       ),
     ).rejects.toBeInstanceOf(Rollback);
-    expect(await owner.course.count({ where: { tenantId: TENANT_A, code: "MATH-10" } })).toBe(0);
+    expect(await owner.course.count({ where: { tenantId: TENANT_A, code: "MATH-PROBE" } })).toBe(0);
   });
 });
 

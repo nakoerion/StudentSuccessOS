@@ -10,7 +10,8 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 
 import { createAdminClient } from "../src/client";
 import { PERMISSIONS, ROLE_PERMISSIONS, SYSTEM_ROLES, type SystemRoleKey } from "../src/system-roles";
-import { seedAcademicRecord, seedConcepts } from "./academic";
+import { runSetupWizard } from "../src/setup-wizard";
+import { seedConcepts } from "./academic";
 import { pick, prng, seedId, seedToken } from "./deterministic";
 import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture } from "./fixtures";
 import type { NamePool } from "./names";
@@ -295,7 +296,12 @@ async function seedTenant(
     },
   });
 
-  const academic = await seedAcademicRecord(tx, f.slug, tenantId, packData);
+  // Full academic year from the pack via the setup wizard (deterministic ids for stable re-seeds).
+  const academic = await runSetupWizard(tx, {
+    tenantId,
+    pack: packData,
+    newId: (table, ...key) => seedId(f.slug, table, ...key),
+  });
 
   await tx.auditLog.create({
     data: {
@@ -314,7 +320,7 @@ async function seedTenant(
     persons: persons.length,
     assignments: assignments.length,
     guardianships: guardianships.length,
-    ...academic,
+    academic,
   };
 }
 
@@ -328,7 +334,8 @@ export async function seed(client: PrismaClient): Promise<void> {
         const r = await seedTenant(tx, f, roleIds);
         console.info(
           `Seeded ${f.name} (${r.tenantId}): ${r.persons} persons, ${r.assignments} role assignments, ${r.guardianships} guardianships, ` +
-            `${r.academicYears} academic year, ${r.terms} terms, ${r.subjects} subjects`,
+            `academic year ${r.academic.academicYearName}: ${JSON.stringify(r.academic.totals)}` +
+            (r.academic.placeholders.length ? ` (placeholder data: ${r.academic.placeholders.join(", ")})` : ""),
         );
       }
       await tx.userAccount.upsert({
