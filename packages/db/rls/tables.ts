@@ -12,12 +12,30 @@
  */
 export type TenantScope = "tenant" | "shared";
 
+/**
+ * What the app role may do with the rows tenant_isolation lets it see.
+ * - "read_write" (default): SELECT, INSERT, UPDATE, DELETE.
+ * - "append_only": SELECT, INSERT. UPDATE/DELETE are not granted, so they fail
+ *   with "permission denied" (e.g. the `event` timeline).
+ * - "derived": SELECT only. Rows are computed by a service running as the owner
+ *   (or a SECURITY DEFINER function), never hand-edited (term/annual grades).
+ */
+export type TenantAccess = "read_write" | "append_only" | "derived";
+
+export const ACCESS_PRIVILEGES: Record<TenantAccess, string> = {
+  read_write: "SELECT, INSERT, UPDATE, DELETE",
+  append_only: "SELECT, INSERT",
+  derived: "SELECT",
+};
+
 export interface TenantScopedTable {
   /** Prisma model name. */
   model: string;
   /** Postgres table name (@@map). */
   table: string;
   scope: TenantScope;
+  /** Defaults to "read_write". */
+  access?: TenantAccess;
 }
 
 export const TENANT_SCOPED_TABLES: readonly TenantScopedTable[] = [
@@ -33,6 +51,27 @@ export const TENANT_SCOPED_TABLES: readonly TenantScopedTable[] = [
   { model: "Invitation", table: "invitation", scope: "tenant" },
   { model: "RosterImport", table: "roster_import", scope: "tenant" },
   { model: "AuditLog", table: "audit_log", scope: "tenant" },
+  // Academic record.
+  { model: "AcademicYear", table: "academic_year", scope: "tenant" },
+  { model: "Term", table: "term", scope: "tenant" },
+  { model: "Subject", table: "subject", scope: "tenant" },
+  { model: "Course", table: "course", scope: "tenant" },
+  { model: "ClassSection", table: "class_section", scope: "tenant" },
+  { model: "Enrollment", table: "enrollment", scope: "tenant" },
+  { model: "TeacherAssignment", table: "teacher_assignment", scope: "tenant" },
+  { model: "TimetableSlot", table: "timetable_slot", scope: "tenant" },
+  { model: "AttendanceEvent", table: "attendance_event", scope: "tenant" },
+  { model: "AssessmentCategory", table: "assessment_category", scope: "tenant" },
+  { model: "GradeEntry", table: "grade_entry", scope: "tenant" },
+  { model: "TermGrade", table: "term_grade", scope: "tenant", access: "derived" },
+  { model: "AnnualGrade", table: "annual_grade", scope: "tenant", access: "derived" },
+  { model: "Assignment", table: "assignment", scope: "tenant" },
+  { model: "Submission", table: "submission", scope: "tenant" },
+  { model: "RubricScore", table: "rubric_score", scope: "tenant" },
+  { model: "Note", table: "note", scope: "tenant" },
+  { model: "Event", table: "event", scope: "tenant", access: "append_only" },
+  { model: "Edge", table: "edge", scope: "tenant" },
+  { model: "MasteryState", table: "mastery_state", scope: "tenant" },
 ];
 
 /**
@@ -60,6 +99,9 @@ export const GLOBAL_TABLES: readonly GlobalTable[] = [
   { table: "tenant", privileges: "SELECT", selfColumn: "id" },
   // Slice 2: no direct access. Sign-in resolves the account via ssos_account_for_auth().
   { table: "user_account", privileges: null },
+  // Academic record: curriculum codes per country pack, shared read-only.
+  { table: "concept", privileges: "SELECT" },
+  { table: "concept_edge", privileges: "SELECT" },
 ];
 
 /**

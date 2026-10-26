@@ -4,10 +4,33 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { policyFor, renderRlsSql, rlsMigrationPath } from "../rls/generate";
-import { GLOBAL_TABLES, TENANT_SCOPED_TABLES } from "../rls/tables";
+import { ACCESS_PRIVILEGES, GLOBAL_TABLES, TENANT_SCOPED_TABLES } from "../rls/tables";
 import { appClient } from "./helpers";
 
 const tenantModels = Prisma.dmmf.datamodel.models.filter((m) => m.fields.some((f) => f.name === "tenantId"));
+
+const ACADEMIC_TENANT_TABLES = [
+  "academic_year",
+  "term",
+  "subject",
+  "course",
+  "class_section",
+  "enrollment",
+  "teacher_assignment",
+  "timetable_slot",
+  "attendance_event",
+  "assessment_category",
+  "grade_entry",
+  "term_grade",
+  "annual_grade",
+  "assignment",
+  "submission",
+  "rubric_score",
+  "note",
+  "event",
+  "edge",
+  "mastery_state",
+];
 
 describe("RLS generator coverage (Prisma DMMF)", () => {
   it("every model with a tenantId field is in the RLS table list, and vice versa", () => {
@@ -38,6 +61,18 @@ describe("RLS generator coverage (Prisma DMMF)", () => {
     }
     // All policies come from the one template.
     for (const t of TENANT_SCOPED_TABLES) expect(sql).toContain(policyFor(t));
+  });
+
+  it("the academic-record tables are classified: tenant-scoped vs global, with access modes", () => {
+    const tenant = new Map(TENANT_SCOPED_TABLES.map((t) => [t.table, t]));
+    for (const table of ACADEMIC_TENANT_TABLES) expect(tenant.get(table)?.scope, table).toBe("tenant");
+    expect(tenant.get("event")?.access).toBe("append_only");
+    expect(tenant.get("term_grade")?.access).toBe("derived");
+    expect(tenant.get("annual_grade")?.access).toBe("derived");
+    const global = new Map(GLOBAL_TABLES.map((t) => [t.table, t]));
+    for (const table of ["concept", "concept_edge"]) {
+      expect(global.get(table), table).toEqual({ table, privileges: "SELECT" });
+    }
   });
 
   it("the committed RLS migration is exactly the generator's output (no drift)", () => {
@@ -71,6 +106,27 @@ describe("RLS in the live database", () => {
     for (const r of rows) {
       expect({ table: r.table, rls: r.rls, forced: r.forced }).toEqual({ table: r.table, rls: true, forced: true });
       expect(r.policies ?? []).toContain("tenant_isolation");
+    }
+  });
+
+  it("the app role's table privileges match each tenant table's access mode", async () => {
+    const rows = await app.$queryRaw<{ table: string; privs: string[] }[]>`
+      SELECT c.relname::text AS table,
+             ARRAY(SELECT p FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']) AS p
+                    WHERE has_table_privilege('ssos_app', c.oid, p)) AS privs
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname = ANY(${TENANT_SCOPED_TABLES.map((t) => t.table)})`;
+    const actual = Object.fromEntries(rows.map((r) => [r.table, r.privs.join(", ")]));
+    const expected = Object.fromEntries(
+      TENANT_SCOPED_TABLES.map((t) => [t.table, ACCESS_PRIVILEGES[t.access ?? "read_write"]]),
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  it("with no tenant set, every academic-record tenant table reads empty", async () => {
+    for (const table of ACADEMIC_TENANT_TABLES) {
+      const [row] = await app.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) AS n FROM "${table}"`);
+      expect({ table, n: Number(row!.n) }).toEqual({ table, n: 0 });
     }
   });
 

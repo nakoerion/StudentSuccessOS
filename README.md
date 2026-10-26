@@ -219,6 +219,26 @@ Other integrity rules (`prisma/migrations/20261018000050_integrity`):
   (`id = app.tenant_id`, SELECT only) — so the app role cannot list accounts or schools.
 - `role_assignment.status` is `active` | `pending` (join-code claims await approval).
 
+### Academic record (schema)
+
+Migration `20261026000000_academic_record` (tables + integrity) and generated
+`20261026000100_rls` (the current `DEFAULT_RLS_MIGRATION`).
+
+- **Tenant-scoped** (`tenant_id` + `tenant_isolation`, composite FKs inside the tenant):
+  `academic_year`, `term`, `subject` (nullable `pack_code`/`pack_key` origin hint),
+  `course`, `class_section`, `enrollment`, `teacher_assignment`, `timetable_slot`,
+  `attendance_event` (method `grid|qr`), `assessment_category`, `grade_entry`
+  (FK to `grade_scale`), `term_grade`, `annual_grade`, `assignment` (`ai_policy`
+  `allowed|guided|forbidden`), `submission`, `rubric_score`, `note`
+  (`visibility` `internal|parent|student`), `event`, `edge`, `mastery_state`.
+- **Global** (forced RLS + `global_read`, SELECT only): `concept`, `concept_edge`.
+- **Access modes** in `rls/tables.ts` (`access`), same row filter for all:
+  `read_write` (default), `append_only` (`event`: SELECT + INSERT; UPDATE/DELETE →
+  permission denied), `derived` (`term_grade`, `annual_grade`: SELECT only — written
+  by the grade-derivation service as owner / SECURITY DEFINER, never by hand).
+- Trigger `ssos_check_grade_scale_tenant`: a `grade_scale_id` on course/grade_entry/
+  term_grade/annual_grade must be a pack default or the same tenant's override.
+
 ## Seed
 
 `pnpm db:seed` — deterministic (UUIDv5-style ids, seeded PRNG, hand-written name
@@ -232,8 +252,12 @@ pools), re-runnable (each demo tenant is rebuilt; globals are upserted).
 Per tenant: 30 students (10 in each of 3 classes), 6 teachers, 20 parents
 (parents P-001…P-010 have two children, P-011…P-020 one), 1 advisor, 1 admin =
 58 persons, 58 role assignments, 30 guardianships, 30 consents, 3 classes,
-2 settings, 1 invitation, 1 audit entry. Globals: 2 country packs, 2 grade scales,
-6 system roles (Student, Parent, Teacher, Advisor, Trainer, Admin), 8 permissions.
+2 settings, 1 invitation, 1 audit entry, plus (academic record, `seed/academic.ts`)
+1 academic year from the pack's exam calendar, its terms (pack terms; if the pack
+defines none, the year is split into 2 placeholder periods), and 8 standard subjects.
+Globals: 2 country packs, 2 grade scales,
+6 system roles (Student, Parent, Teacher, Advisor, Trainer, Admin), 8 permissions,
+and 4 demo `concept` + 3 `concept_edge` rows per pack (placeholder codes, not official).
 
 ### Demo login accounts
 

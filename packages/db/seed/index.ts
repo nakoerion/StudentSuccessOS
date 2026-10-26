@@ -10,6 +10,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 
 import { createAdminClient } from "../src/client";
 import { PERMISSIONS, ROLE_PERMISSIONS, SYSTEM_ROLES, type SystemRoleKey } from "../src/system-roles";
+import { seedAcademicRecord, seedConcepts } from "./academic";
 import { pick, prng, seedId, seedToken } from "./deterministic";
 import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture } from "./fixtures";
 import type { NamePool } from "./names";
@@ -31,6 +32,7 @@ async function seedGlobals(tx: Tx): Promise<Record<SystemRoleKey, string>> {
       update: { name: pack.name, version: pack.version, data },
     });
     const packRow = await tx.countryPack.findUniqueOrThrow({ where: { code } });
+    await seedConcepts(tx, packRow.id, code);
     // Drop pack-default scales the pack no longer defines (tenant overrides are untouched).
     await tx.gradeScale.deleteMany({
       where: { countryPackId: packRow.id, tenantId: null, key: { notIn: pack.gradingScales.map((s) => s.key) } },
@@ -293,6 +295,8 @@ async function seedTenant(
     },
   });
 
+  const academic = await seedAcademicRecord(tx, f.slug, tenantId, packData);
+
   await tx.auditLog.create({
     data: {
       id: seedId(f.slug, "audit", "seed"),
@@ -305,7 +309,13 @@ async function seedTenant(
     },
   });
 
-  return { tenantId, persons: persons.length, assignments: assignments.length, guardianships: guardianships.length };
+  return {
+    tenantId,
+    persons: persons.length,
+    assignments: assignments.length,
+    guardianships: guardianships.length,
+    ...academic,
+  };
 }
 
 export async function seed(client: PrismaClient): Promise<void> {
@@ -317,7 +327,8 @@ export async function seed(client: PrismaClient): Promise<void> {
       for (const f of TENANTS) {
         const r = await seedTenant(tx, f, roleIds);
         console.info(
-          `Seeded ${f.name} (${r.tenantId}): ${r.persons} persons, ${r.assignments} role assignments, ${r.guardianships} guardianships`,
+          `Seeded ${f.name} (${r.tenantId}): ${r.persons} persons, ${r.assignments} role assignments, ${r.guardianships} guardianships, ` +
+            `${r.academicYears} academic year, ${r.terms} terms, ${r.subjects} subjects`,
         );
       }
       await tx.userAccount.upsert({

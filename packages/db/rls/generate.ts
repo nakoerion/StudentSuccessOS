@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  ACCESS_PRIVILEGES,
   APP_FUNCTIONS,
   APP_ROLE,
   GLOBAL_TABLES,
@@ -29,13 +30,16 @@ import {
 export const CURRENT_TENANT_SQL = "NULLIF(current_setting('app.tenant_id', true), '')::uuid";
 
 /** The latest generated RLS migration (earlier ones stay as history). */
-export const DEFAULT_RLS_MIGRATION = "20261020000200_rls_global_tables";
+export const DEFAULT_RLS_MIGRATION = "20261026000100_rls";
 
-/** THE template. Every tenant-scoped table goes through this one function. */
-export function policyFor({ table, scope }: TenantScopedTable): string {
+/**
+ * THE template. Every tenant-scoped table goes through this one function. The row
+ * filter is identical for every table; only the granted privileges vary by `access`.
+ */
+export function policyFor({ table, scope, access = "read_write" }: TenantScopedTable): string {
   const match = `tenant_id = ${CURRENT_TENANT_SQL}`;
   const lines = [
-    `-- ${table} (${scope})`,
+    `-- ${table} (${scope}${access === "read_write" ? "" : `, ${access}`})`,
     `ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY;`,
     `ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY;`,
     `DROP POLICY IF EXISTS tenant_isolation ON "${table}";`,
@@ -49,7 +53,10 @@ export function policyFor({ table, scope }: TenantScopedTable): string {
     // go through tenant_isolation only, so the app can never modify them.
     lines.push(`CREATE POLICY shared_read ON "${table}" FOR SELECT USING (tenant_id IS NULL);`);
   }
-  lines.push(`GRANT SELECT, INSERT, UPDATE, DELETE ON "${table}" TO ${APP_ROLE};`);
+  // Privileges are restated from scratch so a table that moves to a narrower access
+  // mode (append_only / derived) really loses the old UPDATE/DELETE grants.
+  lines.push(`REVOKE ALL ON "${table}" FROM ${APP_ROLE};`);
+  lines.push(`GRANT ${ACCESS_PRIVILEGES[access]} ON "${table}" TO ${APP_ROLE};`);
   return lines.join("\n");
 }
 
