@@ -18,6 +18,7 @@ import type {
   gradeBandSchema,
   gradingScaleSchema,
   localeSchema,
+  needsConfirmationSchema,
   sourceSchema,
   subjectSchema,
   termSchema,
@@ -38,6 +39,7 @@ export type ExamCalendar = z.infer<typeof examCalendarSchema>;
 export type ConsentRule = z.infer<typeof consentRuleSchema>;
 export type ConsentAges = z.infer<typeof consentAgesSchema>;
 export type DefaultLanguages = z.infer<typeof defaultLanguagesSchema>;
+export type NeedsConfirmation = z.infer<typeof needsConfirmationSchema>;
 /** Input shape (what a pack file declares). */
 export type CountryPackInput = z.input<typeof countryPackSchema>;
 /** Validated pack. */

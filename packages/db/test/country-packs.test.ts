@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { seedId } from "../seed/deterministic";
-import { TENANTS } from "../seed/fixtures";
+import { TENANTS, tenantDefaultLocale } from "../seed/fixtures";
 import { withTenant } from "../src/with-tenant";
 import { appClient } from "./helpers";
 
@@ -41,13 +41,24 @@ describe("seeded tenants carry their country pack", () => {
       );
       expect(row.countryPack.code).toBe(fixture.countryCode);
       expect(row.countryPack.version).toBe(pack.version);
-      expect(row.defaultLocale).toBe(packDefaultLocale(pack));
+      // default_locale = the pack's primary language unless the fixture sets the tenant override.
+      expect(row.defaultLocale).toBe(fixture.defaultLocale ?? packDefaultLocale(pack));
+      expect(pack.supportedLocales).toContain(row.defaultLocale);
       expect(row.timezone).toBe(pack.defaultTimezone);
       // The stored pack payload is the validated pack, and still validates.
       expect(validateCountryPack(row.countryPack.data).sources).toEqual(pack.sources);
     },
   );
 
+  it("AE pack defaults to Arabic, but Demo School Abu Dhabi overrides its default_locale to English (the toggle)", () => {
+    const ae = getCountryPack("AE");
+    expect(packDefaultLocale(ae)).toBe("ar");
+    const abuDhabi = TENANTS.find((t) => t.countryCode === "AE")!;
+    expect(tenantDefaultLocale(abuDhabi)).toBe("en");
+    const tirane = TENANTS.find((t) => t.countryCode === "AL")!;
+    expect(tenantDefaultLocale(tirane)).toBe(packDefaultLocale(getCountryPack("AL")));
+    expect(() => tenantDefaultLocale({ ...tirane, defaultLocale: "ar" })).toThrow(/not supported by pack AL/);
+  });
   it("each pack's default grading scales are seeded, and only those", async () => {
     for (const fixture of TENANTS) {
       const tenantId = seedId("tenant", fixture.slug);

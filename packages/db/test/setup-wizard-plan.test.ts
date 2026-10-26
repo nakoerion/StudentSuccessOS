@@ -44,14 +44,20 @@ describe("setup wizard plan", () => {
     expect(plan.placeholders).toEqual(["terms", "subjects", "assessment_categories"]);
   });
 
-  it("AE: three terms straight from the pack calendar", () => {
+  it("AE: the three real MOE 2026-27 terms straight from the pack calendar (golden), English names for an en tenant", () => {
     const plan = planAcademicYear(base(AE, "en"));
-    const cal = AE.examCalendars[0]!;
-    expect(plan.terms).toHaveLength(3);
-    expect(plan.terms).toEqual(
-      cal.terms.map((t, i) => ({ key: t.key, name: t.name, sequence: i + 1, startsOn: t.start, endsOn: t.end })),
-    );
+    expect(plan.academicYear).toEqual({ name: "2026-2027", startsOn: "2026-08-31", endsOn: "2027-07-02" });
+    expect(plan.terms).toEqual([
+      { key: "term-1", name: "Term 1", sequence: 1, startsOn: "2026-08-31", endsOn: "2026-12-11" },
+      { key: "term-2", name: "Term 2", sequence: 2, startsOn: "2027-01-04", endsOn: "2027-04-02" },
+      { key: "term-3", name: "Term 3", sequence: 3, startsOn: "2027-04-12", endsOn: "2027-07-02" },
+    ]);
     expect(plan.placeholders).not.toContain("terms");
+  });
+  it("AE: an ar tenant (the pack default) gets the Arabic term names", () => {
+    const plan = planAcademicYear(base(AE, "ar"));
+    expect(plan.terms.map((t) => t.name)).toEqual(["الفصل الدراسي الأول", "الفصل الدراسي الثاني", "الفصل الدراسي الثالث"]);
+    expect(plan.placeholders).toEqual(["subjects", "assessment_categories"]);
   });
 
   it("builds subject x grade courses, one section per class unit, enrollments and teacher round-robin", () => {
