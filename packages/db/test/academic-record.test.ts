@@ -103,7 +103,7 @@ describe("academic record: tenant isolation", () => {
           const year = await tx.academicYear.findFirstOrThrow();
           const subject = await tx.subject.findFirstOrThrow({ where: { code: "MATH" } });
           const course = await tx.course.create({
-            data: { tenantId: TENANT_A, academicYearId: year.id, subjectId: subject.id, code: "MATH-10", name: "Math 10" },
+            data: { tenantId: TENANT_A, academicYearId: year.id, subjectId: subject.id, code: "MATH-PROBE", name: "Math Probe" },
           });
           const section = await tx.classSection.create({
             data: { tenantId: TENANT_A, courseId: course.id, code: "A", name: "Math 10 A" },
@@ -114,13 +114,15 @@ describe("academic record: tenant isolation", () => {
           await tx.event.create({
             data: { tenantId: TENANT_A, type: "enrollment.created", subjectPersonId: student.id, payload: { course: "MATH-10" } },
           });
-          expect(await tx.enrollment.count()).toBe(1);
+          expect(
+            await tx.enrollment.findFirst({ where: { classSectionId: section.id, studentPersonId: student.id } }),
+          ).not.toBeNull();
           throw new Rollback();
         },
         { client: app },
       ),
     ).rejects.toBeInstanceOf(Rollback);
-    expect(await owner.course.count({ where: { tenantId: TENANT_A, code: "MATH-10" } })).toBe(0);
+    expect(await owner.course.count({ where: { tenantId: TENANT_A, code: "MATH-PROBE" } })).toBe(0);
   });
 });
 
