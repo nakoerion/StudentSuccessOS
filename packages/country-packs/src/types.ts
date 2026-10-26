@@ -6,6 +6,7 @@
 import type { z } from "zod";
 
 import type {
+  assessmentCategorySchema,
   consentAgesSchema,
   consentRuleSchema,
   countryCodeSchema,
@@ -18,8 +19,12 @@ import type {
   gradingScaleSchema,
   localeSchema,
   sourceSchema,
+  subjectSchema,
   termSchema,
 } from "./schema";
+
+export type PackAssessmentCategory = z.infer<typeof assessmentCategorySchema>;
+export type PackSubject = z.infer<typeof subjectSchema>;
 
 export type CountryCode = z.infer<typeof countryCodeSchema>;
 export type Locale = z.infer<typeof localeSchema>;

@@ -62,6 +62,16 @@ export const gradeBandSchema = z.object({
   passing: z.boolean(),
 });
 
+/** A default weighted assessment category for courses graded on a scale (weights sum to 100). */
+export const assessmentCategorySchema = z.object({
+  key,
+  /** Name in the country's language. */
+  name: z.string().min(1),
+  nameEn: z.string().min(1),
+  /** Percentage weight within the course, 0 < weight <= 100. */
+  weight: z.number().positive().max(100),
+});
+
 export const gradingScaleSchema = z.object({
   /** Stable key, unique within the pack, e.g. "al-4-10". */
   key,
@@ -73,7 +83,28 @@ export const gradingScaleSchema = z.object({
   /** Grade codes (from `grades`) this scale is used for. */
   appliesToGrades: z.array(z.string()).min(1),
   bands: z.array(gradeBandSchema).min(1),
+  /**
+   * Default weighted assessment categories the setup wizard creates for every
+   * course on this scale. Optional: when absent the wizard uses its generic
+   * placeholder set. When present, `categoriesSourceIds` must cite them.
+   */
+  defaultCategories: z.array(assessmentCategorySchema).optional(),
+  categoriesSourceIds: z.array(key).optional(),
   notes: z.string().optional(),
+  sourceIds,
+});
+
+/** A subject in the pack's national curriculum (optional pack data, seeded by the setup wizard). */
+export const subjectSchema = z.object({
+  /** Stable key, unique within the pack, e.g. "matematike". Stored as subject.pack_key. */
+  key,
+  /** Short code, unique within the pack, e.g. "MAT". Stored as subject.code. */
+  code: z.string().regex(/^[A-Z0-9][A-Z0-9_-]*$/, "expected an upper-case code"),
+  /** Name in the country's language. */
+  name: z.string().min(1),
+  nameEn: z.string().min(1),
+  /** Grade codes (from `grades`) the subject is taught in; omitted = every grade. */
+  grades: z.array(z.string()).optional(),
   sourceIds,
 });
 
@@ -141,6 +172,8 @@ export const countryPackSchema = z
     grades: z.array(educationStageSchema).min(1),
     gradingScales: z.array(gradingScaleSchema).min(1),
     examCalendars: z.array(examCalendarSchema).min(1),
+    /** National subject catalog. Optional: when absent the setup wizard uses its generic placeholder catalog. */
+    subjects: z.array(subjectSchema).optional(),
     consentAges: consentAgesSchema,
     defaultLanguages: defaultLanguagesSchema,
     sources: z.array(sourceSchema).min(1),
@@ -197,6 +230,30 @@ export const countryPackSchema = z
       const sorted = [...scale.bands].sort((a, b) => a.min - b.min);
       if (sorted[0]?.min !== scale.min || sorted[sorted.length - 1]?.max !== scale.max)
         issue(["gradingScales", i, "bands"], "bands must cover the scale from min to max");
+      if (scale.defaultCategories) {
+        const path = ["gradingScales", i, "defaultCategories"];
+        const total = scale.defaultCategories.reduce((s, c) => s + c.weight, 0);
+        if (Math.abs(total - 100) > 1e-9) issue(path, `category weights must sum to 100 (got ${total})`);
+        const catKeys = new Set(scale.defaultCategories.map((c) => c.key));
+        if (catKeys.size !== scale.defaultCategories.length) issue(path, "duplicate category key");
+        if (!scale.categoriesSourceIds?.length) issue(path, "defaultCategories need categoriesSourceIds");
+      }
+      if (scale.categoriesSourceIds) checkRefs(scale.categoriesSourceIds, ["gradingScales", i, "categories"]);
+    });
+
+    // Subjects: unique keys and codes, grades known.
+    const subjectKeys = new Set<string>();
+    const subjectCodes = new Set<string>();
+    pack.subjects?.forEach((subject, i) => {
+      const path = ["subjects", i];
+      checkRefs(subject.sourceIds, path);
+      if (subjectKeys.has(subject.key)) issue(path, `duplicate subject key "${subject.key}"`);
+      if (subjectCodes.has(subject.code)) issue(path, `duplicate subject code "${subject.code}"`);
+      subjectKeys.add(subject.key);
+      subjectCodes.add(subject.code);
+      subject.grades?.forEach((g) => {
+        if (!gradeCodes.has(g)) issue(path, `unknown grade "${g}"`);
+      });
     });
 
     // Exam calendars: dates ordered, terms inside the year, exam months consistent.

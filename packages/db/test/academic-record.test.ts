@@ -4,7 +4,8 @@
 import type { PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { DEMO_CONCEPTS, DEMO_SUBJECTS } from "../seed/academic";
+import { DEMO_CONCEPTS } from "../seed/academic";
+import { PLACEHOLDER_SUBJECTS } from "../src/setup-wizard";
 import { withTenant } from "../src/with-tenant";
 import { appClient, ownerClient, Rollback, TENANT_A, TENANT_B } from "./helpers";
 
@@ -38,7 +39,7 @@ describe("academic record: tenant isolation", () => {
       );
       expect(r.years).toHaveLength(1);
       expect(r.terms.length).toBeGreaterThanOrEqual(2);
-      expect(r.subjects).toHaveLength(DEMO_SUBJECTS.length);
+      expect(r.subjects).toHaveLength(PLACEHOLDER_SUBJECTS.length);
       for (const rows of [r.years, r.terms, r.subjects]) {
         expect(new Set(rows.map((x) => x.tenantId))).toEqual(new Set([tenantId]));
       }
