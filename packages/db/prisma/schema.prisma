@@ -41,6 +41,7 @@ model CountryPack {
 
   tenants     Tenant[]
   gradeScales GradeScale[]
+  concepts    Concept[]
 
   @@map("country_pack")
 }
@@ -70,6 +71,28 @@ model Tenant {
   invitations     Invitation[]
   rosterImports   RosterImport[]
   auditLogs       AuditLog[]
+
+  // Academic record
+  academicYears        AcademicYear[]
+  terms                Term[]
+  subjects             Subject[]
+  courses              Course[]
+  classSections        ClassSection[]
+  enrollments          Enrollment[]
+  teacherAssignments   TeacherAssignment[]
+  timetableSlots       TimetableSlot[]
+  attendanceEvents     AttendanceEvent[]
+  assessmentCategories AssessmentCategory[]
+  gradeEntries         GradeEntry[]
+  termGrades           TermGrade[]
+  annualGrades         AnnualGrade[]
+  assignments          Assignment[]
+  submissions          Submission[]
+  rubricScores         RubricScore[]
+  notes                Note[]
+  events               Event[]
+  edges                Edge[]
+  masteryStates        MasteryState[]
 
   @@index([countryPackId])
   @@map("tenant")
@@ -123,6 +146,11 @@ model GradeScale {
 
   tenant      Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   countryPack CountryPack @relation(fields: [countryPackId], references: [id], onDelete: Restrict)
+
+  courses      Course[]
+  gradeEntries GradeEntry[]
+  termGrades   TermGrade[]
+  annualGrades AnnualGrade[]
 
   @@unique([countryPackId, tenantId, key])
   @@index([tenantId])
@@ -188,6 +216,7 @@ model TenantUnit {
   children        TenantUnit[]     @relation("UnitTree")
   roleAssignments RoleAssignment[]
   invitations     Invitation[]
+  classSections   ClassSection[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -226,17 +255,32 @@ model Person {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userAccount      UserAccount?     @relation(fields: [userAccountId], references: [id], onDelete: SetNull)
-  roleAssignments  RoleAssignment[]
-  guardianOf       Guardianship[]   @relation("GuardianPerson")
-  guardedBy        Guardianship[]   @relation("StudentPerson")
-  consentsAbout    Consent[]        @relation("ConsentSubject")
-  consentsGiven    Consent[]        @relation("ConsentGrantor")
-  invitationsSent  Invitation[]     @relation("InvitationInviter")
-  invitationsFor   Invitation[]     @relation("InvitationPerson")
-  rosterImports    RosterImport[]
-  auditLogs        AuditLog[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userAccount     UserAccount?     @relation(fields: [userAccountId], references: [id], onDelete: SetNull)
+  roleAssignments RoleAssignment[]
+  guardianOf      Guardianship[]   @relation("GuardianPerson")
+  guardedBy       Guardianship[]   @relation("StudentPerson")
+  consentsAbout   Consent[]        @relation("ConsentSubject")
+  consentsGiven   Consent[]        @relation("ConsentGrantor")
+  invitationsSent Invitation[]     @relation("InvitationInviter")
+  invitationsFor  Invitation[]     @relation("InvitationPerson")
+  rosterImports   RosterImport[]
+  auditLogs       AuditLog[]
+
+  // Academic record
+  enrollments        Enrollment[]        @relation("EnrollmentStudent")
+  teacherAssignments TeacherAssignment[] @relation("TeacherAssignmentTeacher")
+  attendanceAbout    AttendanceEvent[]   @relation("AttendanceStudent")
+  attendanceRecorded AttendanceEvent[]   @relation("AttendanceRecorder")
+  gradeEntriesGiven  GradeEntry[]        @relation("GradeEntryGrader")
+  assignmentsCreated Assignment[]        @relation("AssignmentCreator")
+  submissions        Submission[]        @relation("SubmissionStudent")
+  rubricScoresGiven  RubricScore[]       @relation("RubricScoreScorer")
+  notesAbout         Note[]              @relation("NoteSubject")
+  notesWritten       Note[]              @relation("NoteAuthor")
+  eventsActed        Event[]             @relation("EventActor")
+  eventsAbout        Event[]             @relation("EventSubject")
+  masteryStates      MasteryState[]      @relation("MasteryStudent")
 
   @@unique([tenantId, id])
   @@unique([tenantId, userAccountId])
@@ -316,22 +360,22 @@ model Consent {
 }
 
 model Invitation {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId        String    @map("tenant_id") @db.Uuid
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
   /// Opaque token used in invite links.
-  token           String    @unique
+  token             String    @unique
   /// Short human code (optional) for typing in.
-  code            String?   @unique
-  email           String?
-  roleId          String    @map("role_id") @db.Uuid
-  tenantUnitId    String?   @map("tenant_unit_id") @db.Uuid
-  personId        String?   @map("person_id") @db.Uuid
-  invitedByPersonId String? @map("invited_by_person_id") @db.Uuid
-  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(6)
-  acceptedAt      DateTime? @map("accepted_at") @db.Timestamptz(6)
-  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(6)
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  code              String?   @unique
+  email             String?
+  roleId            String    @map("role_id") @db.Uuid
+  tenantUnitId      String?   @map("tenant_unit_id") @db.Uuid
+  personId          String?   @map("person_id") @db.Uuid
+  invitedByPersonId String?   @map("invited_by_person_id") @db.Uuid
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(6)
+  acceptedAt        DateTime? @map("accepted_at") @db.Timestamptz(6)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   role       Role        @relation(fields: [roleId], references: [id], onDelete: Restrict)
@@ -345,18 +389,18 @@ model Invitation {
 }
 
 model RosterImport {
-  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId           String    @map("tenant_id") @db.Uuid
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
   /// "csv" | "oneroster"
-  source             String
-  status             String    @default("pending")
-  fileName           String?   @map("file_name")
+  source            String
+  status            String    @default("pending")
+  fileName          String?   @map("file_name")
   /// Validation report (Slice: rostering).
-  report             Json?
-  startedByPersonId  String?   @map("started_by_person_id") @db.Uuid
-  completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  report            Json?
+  startedByPersonId String?   @map("started_by_person_id") @db.Uuid
+  completedAt       DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   startedBy Person? @relation(fields: [tenantId, startedByPersonId], references: [tenantId, id], onDelete: NoAction)
@@ -384,4 +428,620 @@ model AuditLog {
   @@index([tenantId])
   @@index([tenantId, entityType, entityId])
   @@map("audit_log")
+}
+
+// ─── Academic record (slice: academic record, part 1 — schema only) ─────────
+//
+// Global curriculum tables (no tenant_id): concept, concept_edge — read-only to
+// the app role (forced RLS + global_read). Everything else is tenant-owned and
+// goes through the one tenant template in rls/generate.ts, with an access mode:
+//   - read_write  (default): SELECT/INSERT/UPDATE/DELETE under tenant_isolation
+//   - append_only (event):   SELECT/INSERT only — UPDATE/DELETE denied
+//   - derived     (term_grade, annual_grade): SELECT only — rows are written by
+//     the grade-derivation service (owner role / SECURITY DEFINER), never by hand
+// Tenant-owned references use composite FKs (tenant_id, x_id) as above.
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+
+  @@map("attendance_status")
+}
+
+enum AttendanceMethod {
+  grid
+  qr
+
+  @@map("attendance_method")
+}
+
+enum AiPolicy {
+  allowed
+  guided
+  forbidden
+
+  @@map("ai_policy")
+}
+
+enum SubmissionStatus {
+  draft
+  submitted
+  returned
+  resubmitted
+  graded
+
+  @@map("submission_status")
+}
+
+enum NoteVisibility {
+  internal
+  parent
+  student
+
+  @@map("note_visibility")
+}
+
+// ── Global curriculum ──
+
+model Concept {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  countryPackId String   @map("country_pack_id") @db.Uuid
+  /// Curriculum code as published by the pack's authority (unique per pack).
+  code          String
+  name          String
+  /// Subject key the concept belongs to (matches subject.code where seeded from the pack).
+  subjectKey    String?  @map("subject_key")
+  /// Pack grade label, e.g. "10".
+  grade         String?
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  countryPack   CountryPack    @relation(fields: [countryPackId], references: [id], onDelete: Cascade)
+  edgesOut      ConceptEdge[]  @relation("ConceptEdgeSource")
+  edgesIn       ConceptEdge[]  @relation("ConceptEdgeTarget")
+  masteryStates MasteryState[]
+
+  @@unique([countryPackId, code])
+  @@index([countryPackId, subjectKey])
+  @@map("concept")
+}
+
+model ConceptEdge {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceConceptId String   @map("source_concept_id") @db.Uuid
+  targetConceptId String   @map("target_concept_id") @db.Uuid
+  /// "prerequisite" | "part_of" | "related"
+  edgeType        String   @map("edge_type")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  source Concept @relation("ConceptEdgeSource", fields: [sourceConceptId], references: [id], onDelete: Cascade)
+  target Concept @relation("ConceptEdgeTarget", fields: [targetConceptId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceConceptId, targetConceptId, edgeType])
+  @@index([targetConceptId])
+  @@map("concept_edge")
+}
+
+// ── School year structure ──
+
+model AcademicYear {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  /// e.g. "2026-2027" (matches the pack's examCalendars[].academicYear).
+  name      String
+  startsOn  DateTime @map("starts_on") @db.Date
+  endsOn    DateTime @map("ends_on") @db.Date
+  isCurrent Boolean  @default(false) @map("is_current")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  terms        Term[]
+  courses      Course[]
+  annualGrades AnnualGrade[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("academic_year")
+}
+
+model Term {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  academicYearId String    @map("academic_year_id") @db.Uuid
+  /// Pack term key (e.g. "term-1") or a tenant-defined key.
+  key            String
+  name           String
+  sequence       Int
+  startsOn       DateTime  @map("starts_on") @db.Date
+  endsOn         DateTime  @map("ends_on") @db.Date
+  /// Term lock (gradebook moderation, later slice). NULL = open.
+  lockedAt       DateTime? @map("locked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear    @relation(fields: [tenantId, academicYearId], references: [tenantId, id], onDelete: Cascade)
+  timetableSlots TimetableSlot[]
+  gradeEntries   GradeEntry[]
+  termGrades     TermGrade[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, academicYearId, key])
+  @@unique([tenantId, academicYearId, sequence])
+  @@index([tenantId])
+  @@map("term")
+}
+
+model Subject {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  code      String
+  name      String
+  /// Origin hint: country-pack code this subject was seeded from; NULL = tenant-defined.
+  packCode  String?  @map("pack_code") @db.VarChar(2)
+  /// Subject key inside the pack (when packCode is set).
+  packKey   String?  @map("pack_key")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  courses Course[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("subject")
+}
+
+model Course {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  academicYearId String   @map("academic_year_id") @db.Uuid
+  subjectId      String   @map("subject_id") @db.Uuid
+  code           String
+  name           String
+  /// Pack grade label, e.g. "10".
+  grade          String?
+  credits        Decimal? @db.Decimal(5, 2)
+  /// Scale used for this course's grades (pack default or tenant override).
+  gradeScaleId   String?  @map("grade_scale_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant               Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear         AcademicYear         @relation(fields: [tenantId, academicYearId], references: [tenantId, id], onDelete: Cascade)
+  subject              Subject              @relation(fields: [tenantId, subjectId], references: [tenantId, id], onDelete: NoAction)
+  gradeScale           GradeScale?          @relation(fields: [gradeScaleId], references: [id], onDelete: NoAction)
+  classSections        ClassSection[]
+  teacherAssignments   TeacherAssignment[]
+  assessmentCategories AssessmentCategory[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, academicYearId, code])
+  @@index([tenantId])
+  @@index([tenantId, subjectId])
+  @@map("course")
+}
+
+model ClassSection {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  courseId     String   @map("course_id") @db.Uuid
+  /// Optional homeroom / class unit the section is drawn from.
+  tenantUnitId String?  @map("tenant_unit_id") @db.Uuid
+  code         String
+  name         String
+  capacity     Int?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course             Course              @relation(fields: [tenantId, courseId], references: [tenantId, id], onDelete: Cascade)
+  tenantUnit         TenantUnit?         @relation(fields: [tenantId, tenantUnitId], references: [tenantId, id], onDelete: NoAction)
+  enrollments        Enrollment[]
+  teacherAssignments TeacherAssignment[]
+  timetableSlots     TimetableSlot[]
+  assignments        Assignment[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, courseId, code])
+  @@index([tenantId])
+  @@map("class_section")
+}
+
+model Enrollment {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  classSectionId  String    @map("class_section_id") @db.Uuid
+  studentPersonId String    @map("student_person_id") @db.Uuid
+  /// "active" | "withdrawn" | "completed"
+  status          String    @default("active")
+  startsOn        DateTime? @map("starts_on") @db.Date
+  endsOn          DateTime? @map("ends_on") @db.Date
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classSection     ClassSection      @relation(fields: [tenantId, classSectionId], references: [tenantId, id], onDelete: Cascade)
+  student          Person            @relation("EnrollmentStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  attendanceEvents AttendanceEvent[]
+  gradeEntries     GradeEntry[]
+  termGrades       TermGrade[]
+  annualGrades     AnnualGrade[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, classSectionId, studentPersonId])
+  @@index([tenantId])
+  @@index([tenantId, studentPersonId])
+  @@map("enrollment")
+}
+
+model TeacherAssignment {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  teacherPersonId String   @map("teacher_person_id") @db.Uuid
+  courseId        String   @map("course_id") @db.Uuid
+  /// NULL = teaches every section of the course.
+  classSectionId  String?  @map("class_section_id") @db.Uuid
+  /// "primary" | "co_teacher" | "assistant"
+  role            String   @default("primary")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher        Person          @relation("TeacherAssignmentTeacher", fields: [tenantId, teacherPersonId], references: [tenantId, id], onDelete: Cascade)
+  course         Course          @relation(fields: [tenantId, courseId], references: [tenantId, id], onDelete: Cascade)
+  classSection   ClassSection?   @relation(fields: [tenantId, classSectionId], references: [tenantId, id], onDelete: NoAction)
+  timetableSlots TimetableSlot[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, teacherPersonId, courseId, classSectionId])
+  @@index([tenantId])
+  @@index([tenantId, courseId])
+  @@map("teacher_assignment")
+}
+
+model TimetableSlot {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  classSectionId      String   @map("class_section_id") @db.Uuid
+  teacherAssignmentId String?  @map("teacher_assignment_id") @db.Uuid
+  /// NULL = applies to every term of the year.
+  termId              String?  @map("term_id") @db.Uuid
+  room                String?
+  /// ISO weekday, 1 = Monday … 7 = Sunday.
+  dayOfWeek           Int      @map("day_of_week") @db.SmallInt
+  startsAt            DateTime @map("starts_at") @db.Time(0)
+  endsAt              DateTime @map("ends_at") @db.Time(0)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classSection      ClassSection       @relation(fields: [tenantId, classSectionId], references: [tenantId, id], onDelete: Cascade)
+  teacherAssignment TeacherAssignment? @relation(fields: [tenantId, teacherAssignmentId], references: [tenantId, id], onDelete: NoAction)
+  term              Term?              @relation(fields: [tenantId, termId], references: [tenantId, id], onDelete: NoAction)
+  attendanceEvents  AttendanceEvent[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, classSectionId])
+  @@index([tenantId, dayOfWeek])
+  @@map("timetable_slot")
+}
+
+model AttendanceEvent {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String           @map("tenant_id") @db.Uuid
+  enrollmentId       String           @map("enrollment_id") @db.Uuid
+  studentPersonId    String           @map("student_person_id") @db.Uuid
+  timetableSlotId    String?          @map("timetable_slot_id") @db.Uuid
+  date               DateTime         @db.Date
+  status             AttendanceStatus
+  method             AttendanceMethod @default(grid)
+  recordedByPersonId String?          @map("recorded_by_person_id") @db.Uuid
+  comment            String?
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enrollment    Enrollment     @relation(fields: [tenantId, enrollmentId], references: [tenantId, id], onDelete: Cascade)
+  student       Person         @relation("AttendanceStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  timetableSlot TimetableSlot? @relation(fields: [tenantId, timetableSlotId], references: [tenantId, id], onDelete: NoAction)
+  recordedBy    Person?        @relation("AttendanceRecorder", fields: [tenantId, recordedByPersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@unique([tenantId, enrollmentId, date, timetableSlotId])
+  @@index([tenantId])
+  @@index([tenantId, studentPersonId, date])
+  @@map("attendance_event")
+}
+
+// ── Gradebook ──
+
+model AssessmentCategory {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  name      String
+  /// Percentage weight within the course (0–100).
+  weight    Decimal  @db.Decimal(5, 2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [tenantId, courseId], references: [tenantId, id], onDelete: Cascade)
+  gradeEntries GradeEntry[]
+  assignments  Assignment[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, courseId, name])
+  @@index([tenantId])
+  @@map("assessment_category")
+}
+
+model GradeEntry {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  enrollmentId         String   @map("enrollment_id") @db.Uuid
+  assessmentCategoryId String   @map("assessment_category_id") @db.Uuid
+  termId               String   @map("term_id") @db.Uuid
+  /// Optional link to the assignment the mark came from.
+  assignmentId         String?  @map("assignment_id") @db.Uuid
+  gradeScaleId         String   @map("grade_scale_id") @db.Uuid
+  rawMark              Decimal  @map("raw_mark") @db.Decimal(6, 2)
+  gradedAt             DateTime @default(now()) @map("graded_at") @db.Timestamptz(6)
+  gradedByPersonId     String?  @map("graded_by_person_id") @db.Uuid
+  comment              String?
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enrollment         Enrollment         @relation(fields: [tenantId, enrollmentId], references: [tenantId, id], onDelete: Cascade)
+  assessmentCategory AssessmentCategory @relation(fields: [tenantId, assessmentCategoryId], references: [tenantId, id], onDelete: NoAction)
+  term               Term               @relation(fields: [tenantId, termId], references: [tenantId, id], onDelete: NoAction)
+  assignment         Assignment?        @relation(fields: [tenantId, assignmentId], references: [tenantId, id], onDelete: NoAction)
+  gradeScale         GradeScale         @relation(fields: [gradeScaleId], references: [id], onDelete: NoAction)
+  gradedBy           Person?            @relation("GradeEntryGrader", fields: [tenantId, gradedByPersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@index([tenantId, enrollmentId, termId])
+  @@map("grade_entry")
+}
+
+/// DERIVED — computed from grade_entry by the gradebook service; the app role may only read it.
+model TermGrade {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  enrollmentId String   @map("enrollment_id") @db.Uuid
+  termId       String   @map("term_id") @db.Uuid
+  gradeScaleId String   @map("grade_scale_id") @db.Uuid
+  value        Decimal  @db.Decimal(6, 2)
+  percentage   Decimal? @db.Decimal(5, 2)
+  /// Inputs snapshot (category averages, weights) used for the derivation.
+  inputs       Json?
+  computedAt   DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enrollment Enrollment @relation(fields: [tenantId, enrollmentId], references: [tenantId, id], onDelete: Cascade)
+  term       Term       @relation(fields: [tenantId, termId], references: [tenantId, id], onDelete: Cascade)
+  gradeScale GradeScale @relation(fields: [gradeScaleId], references: [id], onDelete: NoAction)
+
+  @@unique([tenantId, enrollmentId, termId])
+  @@index([tenantId])
+  @@map("term_grade")
+}
+
+/// DERIVED — computed from term_grade by the gradebook service; the app role may only read it.
+model AnnualGrade {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  enrollmentId   String   @map("enrollment_id") @db.Uuid
+  academicYearId String   @map("academic_year_id") @db.Uuid
+  gradeScaleId   String   @map("grade_scale_id") @db.Uuid
+  value          Decimal  @db.Decimal(6, 2)
+  percentage     Decimal? @db.Decimal(5, 2)
+  inputs         Json?
+  computedAt     DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enrollment   Enrollment   @relation(fields: [tenantId, enrollmentId], references: [tenantId, id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [tenantId, academicYearId], references: [tenantId, id], onDelete: Cascade)
+  gradeScale   GradeScale   @relation(fields: [gradeScaleId], references: [id], onDelete: NoAction)
+
+  @@unique([tenantId, enrollmentId, academicYearId])
+  @@index([tenantId])
+  @@map("annual_grade")
+}
+
+// ── Assignments ──
+
+model Assignment {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String    @map("tenant_id") @db.Uuid
+  classSectionId       String    @map("class_section_id") @db.Uuid
+  assessmentCategoryId String?   @map("assessment_category_id") @db.Uuid
+  createdByPersonId    String?   @map("created_by_person_id") @db.Uuid
+  title                String
+  instructions         String?
+  /// Rubric: { criteria: [{ key, title, maxScore, levels?[] }] }. rubric_score.criterion_key refers to criteria[].key.
+  rubric               Json?
+  maxPoints            Decimal?  @map("max_points") @db.Decimal(6, 2)
+  dueAt                DateTime? @map("due_at") @db.Timestamptz(6)
+  /// e.g. { mode: "penalty", percentPerDay: 10, maxDays: 5 } | { mode: "accept" } | { mode: "reject" }.
+  latePolicy           Json?     @map("late_policy")
+  aiPolicy             AiPolicy  @default(guided) @map("ai_policy")
+  publishedAt          DateTime? @map("published_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classSection       ClassSection        @relation(fields: [tenantId, classSectionId], references: [tenantId, id], onDelete: Cascade)
+  assessmentCategory AssessmentCategory? @relation(fields: [tenantId, assessmentCategoryId], references: [tenantId, id], onDelete: NoAction)
+  createdBy          Person?             @relation("AssignmentCreator", fields: [tenantId, createdByPersonId], references: [tenantId, id], onDelete: NoAction)
+  submissions        Submission[]
+  gradeEntries       GradeEntry[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, classSectionId])
+  @@map("assignment")
+}
+
+model Submission {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  assignmentId    String           @map("assignment_id") @db.Uuid
+  studentPersonId String           @map("student_person_id") @db.Uuid
+  /// 1 for the first hand-in; incremented on return-and-resubmit.
+  attempt         Int              @default(1)
+  status          SubmissionStatus @default(draft)
+  textBody        String?          @map("text_body")
+  /// Uploaded files: [{ storageKey, name, mimeType, bytes }].
+  fileRefs        Json             @default("[]") @map("file_refs")
+  /// Phone-camera photo uploads (mobile flow): [{ storageKey, mimeType, bytes, capturedAt }].
+  photoRefs       Json             @default("[]") @map("photo_refs")
+  submittedAt     DateTime?        @map("submitted_at") @db.Timestamptz(6)
+  isLate          Boolean          @default(false) @map("is_late")
+  plagiarismFlag  Boolean          @default(false) @map("plagiarism_flag")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignment   Assignment    @relation(fields: [tenantId, assignmentId], references: [tenantId, id], onDelete: Cascade)
+  student      Person        @relation("SubmissionStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  rubricScores RubricScore[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, assignmentId, studentPersonId, attempt])
+  @@index([tenantId])
+  @@map("submission")
+}
+
+model RubricScore {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  submissionId     String   @map("submission_id") @db.Uuid
+  /// assignment.rubric.criteria[].key
+  criterionKey     String   @map("criterion_key")
+  score            Decimal  @db.Decimal(6, 2)
+  comment          String?
+  scoredByPersonId String?  @map("scored_by_person_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submission Submission @relation(fields: [tenantId, submissionId], references: [tenantId, id], onDelete: Cascade)
+  scoredBy   Person?    @relation("RubricScoreScorer", fields: [tenantId, scoredByPersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@unique([tenantId, submissionId, criterionKey])
+  @@index([tenantId])
+  @@map("rubric_score")
+}
+
+// ── Notes, timeline, links, mastery ──
+
+model Note {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  subjectPersonId String         @map("subject_person_id") @db.Uuid
+  authorPersonId  String?        @map("author_person_id") @db.Uuid
+  visibility      NoteVisibility @default(internal)
+  body            String
+  /// Optional anchor (e.g. "submission", id).
+  entityType      String?        @map("entity_type")
+  entityId        String?        @map("entity_id") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subject Person  @relation("NoteSubject", fields: [tenantId, subjectPersonId], references: [tenantId, id], onDelete: Cascade)
+  author  Person? @relation("NoteAuthor", fields: [tenantId, authorPersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@index([tenantId, subjectPersonId])
+  @@map("note")
+}
+
+/// APPEND-ONLY timeline: one row per mutation. The app role may SELECT and INSERT only.
+/// (No updated_at: rows never change.)
+model Event {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  occurredAt      DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  /// Actor: the person who caused the event (NULL = system).
+  actorPersonId   String?  @map("actor_person_id") @db.Uuid
+  /// Auth identity of the actor (from app.user_id), when known.
+  actorUserId     String?  @map("actor_user_id") @db.Uuid
+  /// The student (or other person) the event is about — drives the profile timeline.
+  subjectPersonId String?  @map("subject_person_id") @db.Uuid
+  /// e.g. "grade_entry.created", "submission.returned", "attendance.recorded".
+  type            String
+  entityType      String?  @map("entity_type")
+  entityId        String?  @map("entity_id") @db.Uuid
+  payload         Json     @default("{}")
+  /// Evidence references: [{ type: "submission"|"file"|"grade_entry"|..., id | storageKey }].
+  evidenceRefs    Json     @default("[]") @map("evidence_refs")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor   Person? @relation("EventActor", fields: [tenantId, actorPersonId], references: [tenantId, id], onDelete: NoAction)
+  subject Person? @relation("EventSubject", fields: [tenantId, subjectPersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@index([tenantId, subjectPersonId, occurredAt])
+  @@index([tenantId, entityType, entityId])
+  @@map("event")
+}
+
+/// Typed links between any two tenant records (polymorphic; ids are not FK-checked).
+model Edge {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  sourceType String   @map("source_type")
+  sourceId   String   @map("source_id") @db.Uuid
+  edgeType   String   @map("edge_type")
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id") @db.Uuid
+  data       Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sourceType, sourceId, edgeType, targetType, targetId])
+  @@index([tenantId])
+  @@index([tenantId, targetType, targetId])
+  @@map("edge")
+}
+
+/// Created now, populated by a later slice.
+model MasteryState {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  studentPersonId String    @map("student_person_id") @db.Uuid
+  conceptId       String    @map("concept_id") @db.Uuid
+  /// 0–1 mastery estimate.
+  level           Decimal?  @db.Decimal(4, 3)
+  evidenceCount   Int       @default(0) @map("evidence_count")
+  lastEvidenceAt  DateTime? @map("last_evidence_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Person  @relation("MasteryStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: NoAction)
+
+  @@unique([tenantId, studentPersonId, conceptId])
+  @@index([tenantId])
+  @@index([conceptId])
+  @@map("mastery_state")
 }
