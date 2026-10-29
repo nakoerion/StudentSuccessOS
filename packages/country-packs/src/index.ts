@@ -1,7 +1,7 @@
 import { AE_INPUT } from "./packs/ae";
 import { AL_INPUT } from "./packs/al";
 import { LOCALES, validateCountryPack } from "./schema";
-import type { CountryCode, CountryPack, Locale } from "./types";
+import type { CountryCode, CountryPack, Locale, NeedsConfirmation } from "./types";
 
 export type * from "./types";
 export { COUNTRY_CODES, countryPackSchema, LOCALES, validateCountryPack } from "./schema";
@@ -28,6 +28,21 @@ export function isLocale(value: unknown): value is Locale {
 /** The pack's default UI locale (`defaultLanguages.primary`). */
 export function packDefaultLocale(pack: CountryPack): Locale {
   return pack.defaultLanguages.primary;
+}
+
+/**
+ * Every pack fact flagged `needsConfirmation`, with a readable path, so admin
+ * UI / reports can list what a lawyer or the school still has to confirm.
+ */
+export function packConfirmationItems(pack: CountryPack): { path: string; by: NeedsConfirmation["by"]; note: string }[] {
+  const out: { path: string; by: NeedsConfirmation["by"]; note: string }[] = [];
+  const add = (path: string, nc: NeedsConfirmation | undefined) => {
+    if (nc) out.push({ path, ...nc });
+  };
+  for (const [k, rule] of Object.entries(pack.consentAges)) add(`consentAges.${k}`, rule.needsConfirmation);
+  for (const s of pack.gradingScales) add(`gradingScales.${s.key}`, s.needsConfirmation);
+  for (const c of pack.examCalendars) add(`examCalendars.${c.academicYear}`, c.needsConfirmation);
+  return out;
 }
 
 /**

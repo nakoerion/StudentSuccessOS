@@ -30,6 +30,19 @@ export const sourceSchema = z.object({
   accessed: isoDate,
 });
 
+/**
+ * Marks a pack fact the team could not settle from authoritative sources.
+ * - "local-counsel": a legal reading (law-firm summary / official page) that a
+ *   lawyer licensed in the country must confirm before we rely on it.
+ * - "school": a default the school must confirm or replace (e.g. its own
+ *   curriculum's grading scale or calendar); tenants override it per tenant.
+ * Optional everywhere; absent = taken from the cited sources as-is.
+ */
+export const needsConfirmationSchema = z.object({
+  by: z.enum(["local-counsel", "school"]),
+  note: z.string().min(1),
+});
+
 export const ageRangeSchema = z
   .object({ min: age, max: age })
   .refine((r) => r.min <= r.max, "ageRange.min must be <= ageRange.max");
@@ -91,6 +104,7 @@ export const gradingScaleSchema = z.object({
   defaultCategories: z.array(assessmentCategorySchema).optional(),
   categoriesSourceIds: z.array(key).optional(),
   notes: z.string().optional(),
+  needsConfirmation: needsConfirmationSchema.optional(),
   sourceIds,
 });
 
@@ -108,7 +122,20 @@ export const subjectSchema = z.object({
   sourceIds,
 });
 
-export const termSchema = z.object({ key, name: z.string().min(1), start: isoDate, end: isoDate });
+export const termSchema = z.object({
+  key,
+  /** Name in the pack's primary language. */
+  name: z.string().min(1),
+  /** English name; used for tenants whose locale is not the pack's primary language. */
+  nameEn: z.string().min(1).optional(),
+  start: isoDate,
+  end: isoDate,
+  /** Official number of school (instructional) days in the term, when published. */
+  schoolDays: z.number().int().positive().optional(),
+});
+
+/** A published break inside a term (e.g. a mid-term break). */
+export const breakSchema = z.object({ key, name: z.string().min(1), nameEn: z.string().min(1), start: isoDate, end: isoDate });
 
 export const examSchema = z.object({
   key,
@@ -132,7 +159,13 @@ export const examCalendarSchema = z.object({
   end: isoDate,
   /** Terms when the calendar defines them; empty when the year has no formal terms. */
   terms: z.array(termSchema),
+  /** Official total of school days in the year; must equal the sum of term schoolDays when both are given. */
+  schoolDays: z.number().int().positive().optional(),
+  breaks: z.array(breakSchema).optional(),
   exams: z.array(examSchema).min(1),
+  /** Scope / applicability caveats (who the calendar does and does not cover). */
+  notes: z.string().optional(),
+  needsConfirmation: needsConfirmationSchema.optional(),
   sourceIds,
 });
 
@@ -140,6 +173,7 @@ export const consentRuleSchema = z.object({
   /** Minimum age at which the student may give this consent themselves. */
   minAge: age,
   basis: z.string().min(1),
+  needsConfirmation: needsConfirmationSchema.optional(),
   sourceIds,
 });
 
@@ -263,6 +297,19 @@ export const countryPackSchema = z
       cal.terms.forEach((t, j) => {
         if (t.start > t.end || t.start < cal.start || t.end > cal.end)
           issue(["examCalendars", i, "terms", j], `term "${t.key}" must lie within the academic year`);
+        const prev = cal.terms[j - 1];
+        if (prev && t.start <= prev.end)
+          issue(["examCalendars", i, "terms", j], `term "${t.key}" must start after "${prev.key}" ends`);
+      });
+      const termDays = cal.terms.map((t) => t.schoolDays);
+      if (cal.schoolDays !== undefined && termDays.length > 0 && termDays.every((d) => d !== undefined)) {
+        const sum = termDays.reduce<number>((s, d) => s + (d ?? 0), 0);
+        if (sum !== cal.schoolDays)
+          issue(["examCalendars", i, "schoolDays"], `term schoolDays sum to ${sum}, calendar says ${cal.schoolDays}`);
+      }
+      cal.breaks?.forEach((b, j) => {
+        if (b.start > b.end || !cal.terms.some((t) => t.start <= b.start && b.end <= t.end))
+          issue(["examCalendars", i, "breaks", j], `break "${b.key}" must lie within a single term`);
       });
       const examKeys = new Set<string>();
       cal.exams.forEach((exam, j) => {

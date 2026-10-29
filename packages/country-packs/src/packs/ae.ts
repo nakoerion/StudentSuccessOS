@@ -2,16 +2,17 @@ import type { CountryPackInput } from "../types";
 
 /**
  * United Arab Emirates — Ministry of Education (MOE) national system.
- * Researched 2026-10-21; every fact cites `sources` by id. Private schools on
- * other curricula (British, American, IB, Indian…) use their own scales and
- * calendars; a tenant overrides those through tenant-level grade scales/settings.
+ * Researched 2026-10-21, owner policy decisions folded in 2026-10-26; every fact
+ * cites `sources` by id. Private schools on other curricula (British, American,
+ * IB, Indian…) use their own scales and calendars; a tenant overrides those
+ * through tenant-level grade scales/settings and its own default_locale.
  */
 export const AE_INPUT = {
   code: "AE",
   name: "United Arab Emirates",
-  version: "1.0.0",
-  researchedAt: "2026-10-21",
-  supportedLocales: ["en", "ar"],
+  version: "1.1.0",
+  researchedAt: "2026-10-26",
+  supportedLocales: ["ar", "en"],
   defaultTimezone: "Asia/Dubai",
 
   grades: [
@@ -73,6 +74,10 @@ export const AE_INPUT = {
       ],
       notes:
         "Cycle 3 (2026-27 MOE assessment policy): subject marks are recorded out of 100 (grade 12 Group A results to two decimals) and converted to letter grades on reports; promotion requires at least 60% in every Group A subject. The letter-band cut-offs are not published in the cited sources, so only the pass/fail boundary is encoded. Cycles 1–2 are not covered by a cited source yet.",
+      needsConfirmation: {
+        by: "school",
+        note: "No single authoritative Ministry grading scale was found (only news/vendor pages). This is a starting default, not the official scale: each tenant configures its scale per curriculum (MOE, British, American, IB, …) and must confirm it.",
+      },
       sourceIds: ["ae-moe-assessment-2026-27"],
     },
   ],
@@ -82,11 +87,23 @@ export const AE_INPUT = {
       academicYear: "2026-2027",
       start: "2026-08-31",
       end: "2027-07-02",
+      // MOE 2026-27: 3 terms, 185 school days (67 + 60 + 58).
       terms: [
-        { key: "term-1", name: "Term 1", start: "2026-08-31", end: "2026-12-11" },
-        { key: "term-2", name: "Term 2", start: "2027-01-04", end: "2027-04-02" },
-        { key: "term-3", name: "Term 3", start: "2027-04-12", end: "2027-07-02" },
+        { key: "term-1", name: "الفصل الدراسي الأول", nameEn: "Term 1", start: "2026-08-31", end: "2026-12-11", schoolDays: 67 },
+        { key: "term-2", name: "الفصل الدراسي الثاني", nameEn: "Term 2", start: "2027-01-04", end: "2027-04-02", schoolDays: 60 },
+        { key: "term-3", name: "الفصل الدراسي الثالث", nameEn: "Term 3", start: "2027-04-12", end: "2027-07-02", schoolDays: 58 },
       ],
+      schoolDays: 185,
+      breaks: [
+        // MOE document: students' mid-term break 12–16 Oct (some press reports 12–18 Oct including weekends; MOE wins).
+        { key: "term-1-mid-term", name: "عطلة منتصف الفصل الأول", nameEn: "Term 1 mid-term break", start: "2026-10-12", end: "2026-10-16" },
+      ],
+      notes:
+        "MOE national calendar for public schools and private schools on the MOE curriculum. Does NOT cover private schools on Indian, Bangladeshi or Pakistani curricula (they follow their own academic year). Private schools on other non-MOE curricula follow the same year but may split the mid-term break differently (not permitted in Sharjah).",
+      needsConfirmation: {
+        by: "school",
+        note: "Dates are the MOE calendar. A private school not on the MOE curriculum (or on an Indian/Bangladeshi/Pakistani curriculum) must confirm or replace its terms and breaks.",
+      },
       exams: [
         {
           key: "spa-term-1",
@@ -140,21 +157,30 @@ export const AE_INPUT = {
           sourceIds: ["ae-emsat-cancelled"],
         },
       ],
-      sourceIds: ["ae-moe-calendar-2026-2029", "ae-calendar-2026-27-terms"],
+      sourceIds: ["ae-moe-calendar-2026-2029", "ae-moe-calendar-2026-27-days", "ae-calendar-2026-27-terms"],
     },
   ],
 
   consentAges: {
     dataProcessing: {
-      minAge: 13,
+      // Owner decision 2026-10-26: 16 in both packs (stricter than either statute requires, satisfies both).
+      minAge: 16,
       basis:
-        "Federal Decree-Law 26/2025 on Child Digital Safety with Federal Decree-Law 45/2021 (PDPL): personal data of children under 13 may only be collected or used with clear, withdrawable consent from a parent or guardian. Persons under 18 remain children under the law.",
-      sourceIds: ["ae-child-digital-safety", "ae-cds-law-summary"],
+        "Product policy, set stricter than the law: guardian consent below 16, the student's own consent from 16. Federal Decree-Law 45/2021 (PDPL) sets no age of digital consent; Federal Decree-Law 26/2025 on Child Digital Safety requires explicit, verifiable parental consent before a platform processes personal data of a child under 13. 16 satisfies both and matches the Albanian pack.",
+      needsConfirmation: {
+        by: "local-counsel",
+        note: "Based on law-firm summaries and the government portal, not a legal opinion. For a school the lawful basis for processing student data is usually the school's own legal duty, not the child's consent — confirm with UAE counsel (and the emirate regulator, e.g. ADEK/KHDA) before relying on consent.",
+      },
+      sourceIds: ["ae-pdpl-no-minor-age", "ae-cds-parental-consent-13", "ae-child-digital-safety"],
     },
     medical: {
       minAge: 18,
       basis:
         "Federal Decree-Law 4/2016 on Medical Liability, Art. 5: a person who has completed 18 years is competent to consent unless legally incompetent; below that, consent comes from the guardian/relatives.",
+      needsConfirmation: {
+        by: "local-counsel",
+        note: "Guardian consent below 18 is our reading of the statute, not a legal opinion; health data is sensitive — confirm with UAE counsel before building medical-consent flows.",
+      },
       sourceIds: ["ae-medical-liability-law"],
     },
     ageOfMajority: {
@@ -165,11 +191,12 @@ export const AE_INPUT = {
   },
 
   defaultLanguages: {
-    primary: "en",
-    secondary: ["ar"],
+    // Owner decision 2026-10-26: Arabic is the legal baseline, so it is the pack default (RTL).
+    primary: "ar",
+    secondary: ["en"],
     notes:
-      "Arabic is the language of instruction in MOE public schools and English is taught as a second language and used for some subjects. The product defaults the UI to English (private, English-medium schools) with Arabic as the secondary locale; an Arabic-medium tenant sets its own default_locale to \"ar\".",
-    sourceIds: ["ae-pirls-2021-uae"],
+      "Government schools teach all subjects in Arabic, with English as a second language used for technical/scientific subjects; private schools may follow IB/British/American and other curricula but must offer Arabic as a second language. The product defaults the UI to Arabic (RTL) with English as the practical second language/toggle; an English-medium tenant (many international private schools) sets its own default_locale to \"en\".",
+    sourceIds: ["ae-portal-language", "ae-pirls-2021-uae"],
   },
 
   sources: [
@@ -198,6 +225,14 @@ export const AE_INPUT = {
       accessed: "2026-10-21",
     },
     {
+      id: "ae-portal-language",
+      title: "Curricula and language of instruction",
+      publisher: "The UAE Government portal (u.ae)",
+      url: "https://u.ae/en/information-and-services/education/school-education-k-12/curricula-and-language-of-instruction-",
+      kind: "official",
+      accessed: "2026-10-26",
+    },
+    {
       id: "ae-pirls-2021-uae",
       title: "PIRLS 2021 Encyclopedia — United Arab Emirates (language of instruction)",
       publisher: "TIMSS & PIRLS International Study Center, Boston College",
@@ -220,6 +255,14 @@ export const AE_INPUT = {
       url: "https://moe.gov.ae/en/mediacenter/news/Pages/MOE-announces-the-academic-calendar-for-the-next-3-years.aspx",
       kind: "official",
       accessed: "2026-10-21",
+    },
+    {
+      id: "ae-moe-calendar-2026-27-days",
+      title: "UAE announces 2026-27 academic calendar for schools following ministry curriculum (term school days 67/60/58, total 185; mid-term break 12–16 Oct)",
+      publisher: "Gulf Today (reporting the MOE calendar)",
+      url: "https://www.gulftoday.ae/news/2026/05/04/uae-announces-2026-27-academic-calendar-for-schools-following-ministry-curriculum",
+      kind: "news",
+      accessed: "2026-10-26",
     },
     {
       id: "ae-calendar-2026-27-terms",
@@ -268,6 +311,22 @@ export const AE_INPUT = {
       url: "https://u.ae/en/information-and-services/social-affairs/Priority-groups/children/Childrens-digital-safety",
       kind: "official",
       accessed: "2026-10-21",
+    },
+    {
+      id: "ae-pdpl-no-minor-age",
+      title: "UAE — Personal Data Protection Law (Federal Decree-Law 45/2021): no provision on minors or age of digital consent",
+      publisher: "EdLaw (Eduverse)",
+      url: "https://edlaw.eduverse.com/docs/jurisdiction/nat/ae/pdpl",
+      kind: "reference",
+      accessed: "2026-10-26",
+    },
+    {
+      id: "ae-cds-parental-consent-13",
+      title: "UAE issues landmark Child Digital Safety Law: Federal Decree-Law No. 26 of 2025",
+      publisher: "Clyde & Co",
+      url: "https://www.clydeco.com/en/insights/2026/01/uae-issues-landmark-child-digital-safety-law",
+      kind: "reference",
+      accessed: "2026-10-26",
     },
     {
       id: "ae-cds-law-summary",

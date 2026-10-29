@@ -1,4 +1,4 @@
-import type { CountryCode } from "@ssos/country-packs";
+import { type CountryCode, getCountryPack, type Locale, packDefaultLocale } from "@ssos/country-packs";
 
 import { ALBANIAN, EMIRATI, LEVANTINE_EGYPTIAN, type NamePool, SOUTH_ASIAN, WESTERN_EXPAT } from "./names";
 
@@ -8,6 +8,12 @@ export interface TenantFixture {
   name: string;
   /** Country pack; the tenant's default_locale and timezone come from it. */
   countryCode: CountryCode;
+  /**
+   * Optional per-tenant default_locale override (must be one of the pack's
+   * supportedLocales) — the same tenant.default_locale any school can set.
+   * Omitted = the pack's primary language.
+   */
+  defaultLocale?: Locale;
   joinCode: string;
   /** Prefix for demo login emails, e.g. "tirane" -> admin.tirane@demo.ssos.test */
   emailTag: string;
@@ -43,6 +49,9 @@ export const TENANTS: readonly TenantFixture[] = [
     slug: "demo-school-abu-dhabi",
     name: "Demo School Abu Dhabi",
     countryCode: "AE",
+    // The AE pack defaults to Arabic (RTL); this demo school is an English-medium
+    // private school, so it overrides its default_locale to demonstrate the toggle.
+    defaultLocale: "en",
     joinCode: "AUH-7315",
     emailTag: "abudhabi",
     pools: [EMIRATI, LEVANTINE_EGYPTIAN, SOUTH_ASIAN, WESTERN_EXPAT],
@@ -64,4 +73,13 @@ export function demoLoginEmails(): string[] {
     ...TENANTS.flatMap((t) => DEMO_LOGIN_KINDS.map((kind) => `${kind}.${t.emailTag}@${DEMO_EMAIL_DOMAIN}`)),
     NO_ROLE_EMAIL,
   ];
+}
+
+/** The tenant's default_locale: the fixture's override when its pack supports it, else the pack's primary language. */
+export function tenantDefaultLocale(f: Pick<TenantFixture, "countryCode" | "defaultLocale" | "slug">): Locale {
+  const pack = getCountryPack(f.countryCode);
+  if (f.defaultLocale === undefined) return packDefaultLocale(pack);
+  if (!pack.supportedLocales.includes(f.defaultLocale))
+    throw new Error(`fixture ${f.slug}: default locale "${f.defaultLocale}" is not supported by pack ${pack.code}`);
+  return f.defaultLocale;
 }

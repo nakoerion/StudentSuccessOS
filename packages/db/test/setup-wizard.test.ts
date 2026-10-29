@@ -108,8 +108,14 @@ describe("setup wizard: golden cases (seeded via the wizard, read through ssos_a
     expect(new Set(r.enrollmentsPerStudent.map((e) => e._count._all))).toEqual(new Set([SUBJECTS]));
   });
 
-  it("AE (Demo School Abu Dhabi): 1 year, the pack's 3 terms, full scaffolding", async () => {
+  it("AE (Demo School Abu Dhabi): 1 year, the 3 real MOE 2026-27 terms, full scaffolding", async () => {
     const cal = AE.examCalendars[0]!;
+    // Golden: MOE 2026-27 calendar (owner decision 2026-10-26), not a placeholder.
+    expect(cal.terms.map((t) => [t.start, t.end, t.schoolDays])).toEqual([
+      ["2026-08-31", "2026-12-11", 67],
+      ["2027-01-04", "2027-04-02", 60],
+      ["2027-04-12", "2027-07-02", 58],
+    ]);
     const r = await withTenant(
       TENANT_B,
       async (tx) => ({
@@ -122,9 +128,14 @@ describe("setup wizard: golden cases (seeded via the wizard, read through ssos_a
       { client: app },
     );
     expect(r.counts).toEqual(golden(3));
-    expect(r.terms.map((t) => ({ key: t.key, s: t.startsOn.toISOString().slice(0, 10), e: t.endsOn.toISOString().slice(0, 10) }))).toEqual(
-      cal.terms.map((t) => ({ key: t.key, s: t.start, e: t.end })),
-    );
+    expect(
+      r.terms.map((t) => ({ key: t.key, name: t.name, s: t.startsOn.toISOString().slice(0, 10), e: t.endsOn.toISOString().slice(0, 10) })),
+    ).toEqual([
+      // The demo tenant overrides the pack's Arabic default with "en", so the English term names are used.
+      { key: "term-1", name: "Term 1", s: "2026-08-31", e: "2026-12-11" },
+      { key: "term-2", name: "Term 2", s: "2027-01-04", e: "2027-04-02" },
+      { key: "term-3", name: "Term 3", s: "2027-04-12", e: "2027-07-02" },
+    ]);
     expect(r.subject).toMatchObject({ name: "Mathematics", packCode: null, packKey: null });
     expect(r.scales.map((s) => s.gradeScale?.key)).toEqual(["ae-moe-percentage"]);
     expect(r.weights).toHaveLength(SUBJECTS * GRADES);

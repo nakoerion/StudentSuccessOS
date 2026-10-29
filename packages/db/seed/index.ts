@@ -5,7 +5,7 @@
  *
  *   pnpm db:seed
  */
-import { getCountryPack, packDefaultLocale } from "@ssos/country-packs";
+import { getCountryPack } from "@ssos/country-packs";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
 import { createAdminClient } from "../src/client";
@@ -13,7 +13,7 @@ import { PERMISSIONS, ROLE_PERMISSIONS, SYSTEM_ROLES, type SystemRoleKey } from 
 import { runSetupWizard } from "../src/setup-wizard";
 import { seedConcepts } from "./academic";
 import { pick, prng, seedId, seedToken } from "./deterministic";
-import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture } from "./fixtures";
+import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture, tenantDefaultLocale } from "./fixtures";
 import type { NamePool } from "./names";
 
 type Tx = Prisma.TransactionClient;
@@ -124,6 +124,7 @@ async function seedTenant(
   const tenantId = seedId("tenant", f.slug);
   const pack = await tx.countryPack.findUniqueOrThrow({ where: { code: f.countryCode } });
   const packData = getCountryPack(f.countryCode);
+  const defaultLocale = tenantDefaultLocale(f);
 
   // Rebuild from scratch: cascades to every tenant-owned table.
   await tx.tenant.deleteMany({ where: { OR: [{ id: tenantId }, { slug: f.slug }] } });
@@ -133,8 +134,9 @@ async function seedTenant(
       slug: f.slug,
       name: f.name,
       countryPackId: pack.id,
-      // Locale and timezone come from the country pack, never from the fixture.
-      defaultLocale: packDefaultLocale(packData),
+      // Timezone comes from the country pack; locale too unless the fixture sets the
+      // tenant's own default_locale override (validated against the pack).
+      defaultLocale,
       timezone: packData.defaultTimezone,
       joinCode: f.joinCode,
     },
@@ -274,10 +276,10 @@ async function seedTenant(
         id: seedId("user_account", email),
         email,
         displayName: person.displayName,
-        locale: packDefaultLocale(packData),
+        locale: defaultLocale,
       },
       // external_auth_id is NOT touched: the Supabase link survives re-seeding.
-      update: { displayName: person.displayName, locale: packDefaultLocale(packData) },
+      update: { displayName: person.displayName, locale: defaultLocale },
     });
     await tx.person.update({ where: { id: person.id }, data: { userAccountId: account.id } });
   }

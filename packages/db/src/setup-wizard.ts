@@ -128,7 +128,13 @@ export function planAcademicYear(input: PlanInput): AcademicYearPlan {
   // Terms: from the pack calendar, else PLACEHOLDER equal "Period" split.
   let terms: AcademicYearPlan["terms"];
   if (cal.terms.length > 0) {
-    terms = cal.terms.map((t, i) => ({ key: t.key, name: t.name, sequence: i + 1, startsOn: t.start, endsOn: t.end }));
+    terms = cal.terms.map((t, i) => ({
+      key: t.key,
+      name: packName({ name: t.name, nameEn: t.nameEn ?? t.name }),
+      sequence: i + 1,
+      startsOn: t.start,
+      endsOn: t.end,
+    }));
   } else {
     placeholders.push("terms");
     terms = splitIntoPeriods(cal.start, cal.end, PLACEHOLDER_TERM_COUNT).map((r, i) => ({

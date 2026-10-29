@@ -1,14 +1,15 @@
 import type { CountryPackInput } from "../types";
 
 /**
- * Albania. Researched 2026-10-21; every fact cites `sources` by id.
+ * Albania. Researched 2026-10-21, owner policy decisions folded in 2026-10-26;
+ * every fact cites `sources` by id.
  * Structure: Law 69/2012 "Për sistemin arsimor parauniversitar" (as amended).
  */
 export const AL_INPUT = {
   code: "AL",
   name: "Albania",
-  version: "1.0.0",
-  researchedAt: "2026-10-21",
+  version: "1.1.0",
+  researchedAt: "2026-10-26",
   supportedLocales: ["sq", "en"],
   defaultTimezone: "Europe/Tirane",
 
@@ -88,7 +89,13 @@ export const AL_INPUT = {
       start: "2026-09-14",
       end: "2027-06-18",
       // The Albanian school-year structure order sets lesson periods and holidays, not numbered terms.
+      // The year runs in 2 semesters, but no authoritative semester dates are encoded yet: the setup
+      // wizard splits the year into 2 PLACEHOLDER periods until the school confirms its dates.
       terms: [],
+      needsConfirmation: {
+        by: "school",
+        note: "Semester dates are not in the pack yet; the setup wizard creates 2 placeholder periods that split the year evenly. The school must confirm or replace them with its real semester dates.",
+      },
       exams: [
         {
           key: "matura-shteterore",
@@ -123,13 +130,22 @@ export const AL_INPUT = {
       minAge: 16,
       basis:
         "Law 124/2024 on Personal Data Protection, Art. 8(6): consent-based processing of a minor's data for online services is lawful only from age 16; below 16 a parent or legal guardian must give or authorise consent.",
-      sourceIds: ["al-law-124-2024"],
+      needsConfirmation: {
+        by: "local-counsel",
+        note: "Art. 8(6) covers consent to online services. For a school the lawful basis for processing student data is usually the school's own legal duty, not the child's consent — confirm with Albanian counsel before relying on consent.",
+      },
+      sourceIds: ["al-law-124-2024", "al-dla-piper-consent-16"],
     },
     medical: {
+      // Owner decision 2026-10-26: default 18; do NOT lower to 16 until Albanian counsel confirms.
       minAge: 18,
       basis:
-        "No lower statutory age for medical consent was found; a minor (under 18) is represented by a parent or guardian, and full legal capacity — including consenting to treatment without a parent — starts at 18.",
-      sourceIds: ["al-law-18-2017", "al-unfpa-capacity"],
+        "No lower statutory age for medical consent was found; a minor (under 18) is represented by a parent or guardian, and full legal capacity — including consenting to treatment without a parent — starts at 18. Guardian consent below 18. Health data is sensitive data under Law 124/2024.",
+      needsConfirmation: {
+        by: "local-counsel",
+        note: "The likely governing text is Law 10107/2009 on health care, but its consent rule is unconfirmed; a non-authoritative industry blog suggests 16 may apply in some cases. Keep 18 until Albanian counsel confirms.",
+      },
+      sourceIds: ["al-law-18-2017", "al-unfpa-capacity", "al-law-124-2024"],
     },
     ageOfMajority: {
       minAge: 18,
@@ -201,6 +217,14 @@ export const AL_INPUT = {
       url: "https://idp.al/wp-content/uploads/2025/03/Law-no.124-2024.pdf",
       kind: "legislation",
       accessed: "2026-10-21",
+    },
+    {
+      id: "al-dla-piper-consent-16",
+      title: "Electronic marketing in Albania — a minor's consent to online services is valid from 16 (Law 124/2024, Art. 8(6))",
+      publisher: "DLA Piper — Data Protection Laws of the World",
+      url: "https://www.dlapiperdataprotection.com/index.html?t=electronic-marketing&c=AL",
+      kind: "reference",
+      accessed: "2026-10-26",
     },
     {
       id: "al-law-18-2017",

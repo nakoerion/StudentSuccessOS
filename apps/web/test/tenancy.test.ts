@@ -85,7 +85,8 @@ describe("locale choice", () => {
     expect(chooseLocale({ tenantDefault: tenantDefault("sq", "AL"), acceptLanguage: "en" })).toBe("sq");
     expect(chooseLocale({ tenantDefault: tenantDefault(null, "AL"), acceptLanguage: "en" })).toBe("sq");
     expect(chooseLocale({ tenantDefault: tenantDefault("ar", "AL"), acceptLanguage: "en" })).toBe("sq");
-    expect(chooseLocale({ tenantDefault: tenantDefault("xx", "AE"), acceptLanguage: "sq" })).toBe("en");
+    expect(chooseLocale({ tenantDefault: tenantDefault("xx", "AE"), acceptLanguage: "sq" })).toBe("ar"); // AE pack default is Arabic
+    expect(chooseLocale({ tenantDefault: tenantDefault("en", "AE") })).toBe("en"); // English-medium override
     expect(chooseLocale({ tenantDefault: tenantDefault("ar", "AE") })).toBe("ar");
     // Unknown pack and no valid locale -> falls through to account / Accept-Language / en.
     expect(chooseLocale({ tenantDefault: tenantDefault("xx", "ZZ"), acceptLanguage: "ar" })).toBe("ar");
