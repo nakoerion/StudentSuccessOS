@@ -272,7 +272,7 @@ Other integrity rules (`prisma/migrations/20261018000050_integrity`):
 ### Academic record (schema)
 
 Migration `20261026000000_academic_record` (tables + integrity) and generated
-`20261026000100_rls` (the current `DEFAULT_RLS_MIGRATION`).
+`20261026000100_rls` (superseded as `DEFAULT_RLS_MIGRATION` by `20261029000100_rls`, see Attendance).
 
 - **Tenant-scoped** (`tenant_id` + `tenant_isolation`, composite FKs inside the tenant):
   `academic_year`, `term`, `subject` (nullable `pack_code`/`pack_key` origin hint),
@@ -377,6 +377,66 @@ with `reason` one of `malformed_row` (unparseable / wrong field count), `bad_day
 detail) or `duplicate`. Re-importing a file rejects its already-imported rows as
 `duplicate` — nothing is inserted twice. A missing header or required column throws
 `TimetableImportError`.
+
+### Attendance (service layer)
+
+`packages/db/src/attendance.ts`, exported from `@ssos/db`. An `attendance_event` is one
+mark — `present` | `late` | `absent` | `excused` — for one enrollment on one date,
+optionally for one timetable slot (period; no slot = a whole-day mark). Writes run as the
+**owner** role with explicit `tenant_id` filters; every write records **exactly one**
+`event` row (`type = "attendance.recorded"`, `subject_person_id` = the student,
+`actor_person_id` = the recorder, `entity_type = "attendance_event"`, `entity_id`,
+`payload = { status, method, date, slotId? }`) in the same transaction.
+
+- `recordAttendance(ownerDb, { tenantId, enrollmentId, studentPersonId, date, status, timetableSlotId?, method?, recordedByPersonId?, actorUserId?, comment? })`
+  — `date` is `"YYYY-MM-DD"`. Throws `AttendanceError` (`code`): `unknown_enrollment`
+  (not in this tenant), `student_mismatch`, `unknown_slot` (not in this tenant),
+  `slot_section_mismatch` (slot of another section), `out_of_range` (outside the slot's
+  term, or the academic year when the slot has no term / there is no slot), `duplicate`
+  (same enrollment + date + slot already marked — also for whole-day marks, which the
+  unique index alone cannot catch because NULL slots are distinct), `bad_date`, `bad_status`.
+- **Grid** — `markAttendanceFromGrid(ownerDb, sectionId, date, rows, { tenantId, timetableSlotId?, recordedByPersonId? })`
+  with `rows = [{ studentPersonId, status, comment? }]`, `method = "grid"`. All-or-nothing:
+  every student must be **actively** enrolled in the section (`not_enrolled`), none may
+  repeat or already be marked (`duplicate`); one event per row.
+- **QR** — `issueAttendanceQr(ownerDb, slotId, date, { tenantId, expiresInMinutes? = 15 })`
+  returns a **stateless** token (no table): `base64url(JSON {tenantId, slotId, date, expiresAt})`
+  `.` `base64url(HMAC-SHA256)`. The key is derived from the server-only `SUPABASE_SECRET_KEY`
+  env var as `HMAC-SHA256(SUPABASE_SECRET_KEY, "ssos:attendance-qr:v1")` — never hardcoded;
+  rotating the secret invalidates outstanding tokens. `tenantId` is signed, so a token cannot
+  be replayed into another tenant. `markAttendanceFromQr(ownerDb, token, studentPersonId, { tenantId? })`
+  verifies signature (constant time) and expiry, finds the student's active enrollment in
+  the slot's section and records `present`, `method = "qr"`, actor = the student. Codes:
+  `invalid_token`, `expired_token`, `not_enrolled`, `duplicate`.
+- Reads: `listAttendanceForSection(db, { tenantId, sectionId, from?, to? })` and
+  `listAttendanceForStudent(db, { tenantId, studentPersonId, from?, to? })` (inclusive
+  bounds), ordered by date then student; owner client or inside `withTenant`.
+
+**Attendance rate (derived, never hand-edited).** Migration `20261029000000_attendance_rate`
+creates the materialised view `attendance_rate_mv` — one row per
+`(tenant_id, student_person_id, term_id)` with `present, late, absent, excused, total,
+present_rate numeric(5,2)`:
+
+```
+total        = present + late + absent + excused
+present_rate = ROUND(100.0 * (present + late) / NULLIF(total, 0), 2)
+```
+
+Default rule: **late counts as attended; excused stays in the denominator** (it is not
+attendance). `term_id` is the tenant's term whose `[starts_on, ends_on]` (inclusive) contains
+the event date (overlapping terms: the latest-starting wins). Events dated in **no term**
+(e.g. the break between UAE terms) are kept under `term_id = NULL` ("unassigned"), not dropped.
+The rate is country-agnostic.
+
+- `refresh_attendance_rate()` (`refreshAttendanceRate(ownerDb)`) runs
+  `REFRESH MATERIALIZED VIEW`; EXECUTE is revoked from `PUBLIC`, so only the owner refreshes.
+  The MV is a snapshot: call it after writes (or on a schedule).
+- Postgres **cannot enable RLS on a materialised view**, so the app never touches the MV
+  (no privileges). It reads the generated view **`attendance_rate`**:
+  `SELECT * FROM attendance_rate_mv WHERE tenant_id = <the RLS template's tenant predicate>`,
+  `security_barrier`, `GRANT SELECT` only — emitted by `rls/generate.ts` from
+  `TENANT_DERIVED_VIEWS` (`20261029000100_rls`, the current `DEFAULT_RLS_MIGRATION`).
+  `listAttendanceRates(tx, { studentPersonId?, termId? })` reads it inside `withTenant`.
 
 ## Seed
 

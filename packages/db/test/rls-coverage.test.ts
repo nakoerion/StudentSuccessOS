@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { policyFor, renderRlsSql, rlsMigrationPath } from "../rls/generate";
-import { ACCESS_PRIVILEGES, GLOBAL_TABLES, TENANT_SCOPED_TABLES } from "../rls/tables";
+import { CURRENT_TENANT_SQL, derivedViewSql, policyFor, renderRlsSql, rlsMigrationPath } from "../rls/generate";
+import { ACCESS_PRIVILEGES, GLOBAL_TABLES, TENANT_DERIVED_VIEWS, TENANT_SCOPED_TABLES } from "../rls/tables";
 import { appClient } from "./helpers";
 
 const tenantModels = Prisma.dmmf.datamodel.models.filter((m) => m.fields.some((f) => f.name === "tenantId"));
@@ -75,6 +75,16 @@ describe("RLS generator coverage (Prisma DMMF)", () => {
     }
   });
 
+  it("derived materialised views get a tenant-filtered, SELECT-only view from the same predicate", () => {
+    const sql = renderRlsSql();
+    expect(TENANT_DERIVED_VIEWS.map((v) => v.view)).toContain("attendance_rate");
+    for (const v of TENANT_DERIVED_VIEWS) {
+      expect(sql).toContain(derivedViewSql(v));
+      expect(derivedViewSql(v)).toContain(`WHERE tenant_id = ${CURRENT_TENANT_SQL}`);
+      expect(derivedViewSql(v)).toContain(`GRANT SELECT ON "${v.view}" TO ssos_app;`);
+      expect(derivedViewSql(v)).toContain(`REVOKE ALL ON "${v.source}" FROM ssos_app;`);
+    }
+  });
   it("the committed RLS migration is exactly the generator's output (no drift)", () => {
     expect(readFileSync(rlsMigrationPath(), "utf8")).toBe(renderRlsSql());
   });

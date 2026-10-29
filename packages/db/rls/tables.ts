@@ -105,6 +105,26 @@ export const GLOBAL_TABLES: readonly GlobalTable[] = [
 ];
 
 /**
+ * Derived, tenant-scoped relations backed by a MATERIALIZED VIEW.
+ *
+ * PostgreSQL cannot enable row-level security on a materialised view, so the MV
+ * (`source`) gets no app-role privileges at all and the app reads it through `view`:
+ * a security_barrier view filtered with the SAME tenant predicate as the RLS template,
+ * granted SELECT only (never hand-editable). Refreshing is owner-only.
+ */
+export interface TenantDerivedView {
+  /** App-facing view name. */
+  view: string;
+  /** The materialised view behind it (created by its own migration). */
+  source: string;
+}
+
+export const TENANT_DERIVED_VIEWS: readonly TenantDerivedView[] = [
+  // Slice 3b: attendance rate per tenant x student x term (refresh_attendance_rate()).
+  { view: "attendance_rate", source: "attendance_rate_mv" },
+];
+
+/**
  * SECURITY DEFINER functions the app role may call before a tenant is chosen.
  * Each returns rows for exactly one key (user id, e-mail, code) — never a list.
  */
