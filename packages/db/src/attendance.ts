@@ -532,7 +532,7 @@ export interface MarkAttendanceFromQrOptions {
  * Throws `invalid_token`, `expired_token`, `not_enrolled`, `duplicate` (or the
  * recordAttendance range codes).
  */
-export function markAttendanceFromQr(
+export async function markAttendanceFromQr(
   db: PrismaClient | Db,
   token: string,
   studentPersonId: string,
@@ -540,7 +540,7 @@ export function markAttendanceFromQr(
 ): Promise<AttendanceView> {
   const payload = verifyAttendanceToken(token, opts.key ?? attendanceQrKey(), opts.now ?? Date.now());
   if (opts.tenantId !== undefined && opts.tenantId !== payload.tenantId)
-    return Promise.reject(new AttendanceError("invalid_token", "attendance token was issued for another tenant"));
+    throw new AttendanceError("invalid_token", "attendance token was issued for another tenant");
   const { tenantId } = payload;
   return inTx(db, async (tx) => {
     let slot: ResolvedSlot;
