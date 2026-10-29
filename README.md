@@ -319,6 +319,65 @@ is the pack scale whose `appliesToGrades` covers the grade, a tenant override wi
     Tests 30 / Final assessment 30 (`PLACEHOLDER_CATEGORIES`). Packs may now declare
     `gradingScales[].defaultCategories` (cited via `categoriesSourceIds`, weights sum to 100).
 
+### Timetable (service layer)
+
+`packages/db/src/timetable.ts` and `timetable-import.ts`, exported from `@ssos/db`.
+A `timetable_slot` is a weekly recurring period: class section + ISO weekday
+(1 = Monday … 7 = Sunday) + `[startsAt, endsAt)`, with an optional teacher assignment,
+room and term (term NULL = every term of the year). No new tables; RLS is unchanged.
+
+- `createTimetableSlot(ownerDb, { tenantId, classSectionId, teacherAssignmentId?, termId?, room?, dayOfWeek, startsAt, endsAt })`
+  runs as the **owner** role (explicit `tenant_id` filters, a per-tenant advisory lock
+  around check-and-insert) and returns the slot with `"HH:MM"` times. It throws
+  `TimetableValidationError` (`code`: `bad_day`, `bad_time`, `unknown_section`,
+  `unknown_teacher_assignment` — the assignment must cover the section — or
+  `unknown_term` — the term must belong to the section's academic year) or
+  `TimetableConflictError` (`conflict`: `kind`, the clashing `slotId`, its day/times,
+  plus `teacherPersonId` / `room` / `studentPersonId`), writing nothing.
+- **Conflict rules.** Two slots can clash only if they are on the same weekday, their
+  half-open time ranges overlap (a period ending 08:45 and one starting 08:45 do **not**
+  clash), their terms overlap (same term, or either is all-year) and their sections are in
+  the same academic year. Checked in this order:
+  1. `duplicate` — identical section, day, times, teacher assignment, room and term;
+  2. `section` — the class section is already scheduled;
+  3. `teacher` — the teacher (person behind the teacher assignment, across all their
+     assignments) is already teaching;
+  4. `room` — the room (trimmed, case-insensitive) is in use; slots without a room never clash on room;
+  5. `student` — a student actively enrolled in this section is actively enrolled in
+     another section that is already scheduled (derived from `enrollment`).
+- The rules are pure and DB-free: `findSlotConflict(candidate, existing)`, `hasTimeOverlap(a, b)`, `parseTime`.
+- Grids: `listTimetableForStudent` (sections via active `enrollment`),
+  `listTimetableForTeacher` (via `teacher_assignment`), `listTimetableForRoom`; each
+  takes `{ tenantId, …, termId?, academicYearId? }` and returns slots ordered by
+  `dayOfWeek`, then `startsAt`, with section/course codes and the teacher. Reads work
+  with the owner client or inside `withTenant(...)` on the app role (RLS).
+
+**CSV import** — `importTimetableCsv(ownerDb, csvText, { tenantId, academicYearId?, rooms? })`.
+UTF-8, comma-separated, RFC 4180 quoting; a header row is required (names
+case-insensitive, any order); blank lines are skipped.
+
+| Column | Required | Value |
+| --- | --- | --- |
+| `day` | yes | `1`–`7` (1 = Monday) or an English day name / abbreviation (`Mon`, `monday`) |
+| `start` | yes | `HH:MM`, 24h |
+| `end` | yes | `HH:MM`, 24h, after `start` |
+| `course` | yes | course code in the academic year, e.g. `MATH-10` (case-insensitive) |
+| `section` | yes | class-section code within that course, e.g. `10-A` |
+| `teacher` | no | staff number (`person.external_ref`) of a teacher assigned to that section |
+| `room` | no | free text; rejected as `unknown_room` only if the `rooms` allow-list is given and lacks it |
+| `term` | no | term key in the academic year (e.g. `term-1`, `period-1`); empty = every term |
+
+The academic year defaults to the tenant's current one. Every row goes through
+`createTimetableSlot` in one owner transaction, so conflicts are checked against the
+database **and** earlier rows of the same file. The report is
+`{ academicYearId, totalRows, accepted: [{ line, slotId, values }], rejected: [{ line, reason, message, conflict?, values? }] }`
+with `reason` one of `malformed_row` (unparseable / wrong field count), `bad_day`,
+`bad_time` (bad or empty time, end not after start), `unknown_section`,
+`unknown_teacher`, `unknown_room`, `unknown_term`, `conflict` (with the conflict
+detail) or `duplicate`. Re-importing a file rejects its already-imported rows as
+`duplicate` — nothing is inserted twice. A missing header or required column throws
+`TimetableImportError`.
+
 ## Seed
 
 `pnpm db:seed` — deterministic (UUIDv5-style ids, seeded PRNG, hand-written name

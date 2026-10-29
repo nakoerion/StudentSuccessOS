@@ -5,3 +5,5 @@ export { SYSTEM_ROLES, PERMISSIONS, ROLE_PERMISSIONS, type SystemRoleKey } from 
 export * from "./lookups";
 export * from "@prisma/client";
 export * from "./setup-wizard";
+export * from "./timetable";
+export * from "./timetable-import";
