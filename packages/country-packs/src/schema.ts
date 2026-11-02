@@ -73,6 +73,15 @@ export const gradeBandSchema = z.object({
   description: z.string().optional(),
   /** Whether this band counts as a pass. Must agree with the scale's passMark. */
   passing: z.boolean(),
+  /**
+   * Lowest percentage (0–100) that falls in this band; the band covers
+   * [pctMin, next band's pctMin). Required on non-percentage scales; on a
+   * percentage scale it defaults to `min`. A product convention (see the
+   * scale's `conversionNote`), not a cited fact.
+   */
+  pctMin: z.number().min(0).max(100).optional(),
+  /** Points on the 4.0 GPA scale. A product convention (see `conversionNote`). */
+  gpa: z.number().min(0).max(4).optional(),
 });
 
 /** A default weighted assessment category for courses graded on a scale (weights sum to 100). */
@@ -104,6 +113,12 @@ export const gradingScaleSchema = z.object({
   defaultCategories: z.array(assessmentCategorySchema).optional(),
   categoriesSourceIds: z.array(key).optional(),
   notes: z.string().optional(),
+  /**
+   * How percentage / GPA / Matura-equivalent conversions on this scale were chosen.
+   * Required whenever the bands carry `pctMin` or `gpa`: those values are product
+   * conventions the school must confirm, so the pack has to say so.
+   */
+  conversionNote: z.string().min(1).optional(),
   needsConfirmation: needsConfirmationSchema.optional(),
   sourceIds,
 });
@@ -264,6 +279,28 @@ export const countryPackSchema = z
       const sorted = [...scale.bands].sort((a, b) => a.min - b.min);
       if (sorted[0]?.min !== scale.min || sorted[sorted.length - 1]?.max !== scale.max)
         issue(["gradingScales", i, "bands"], "bands must cover the scale from min to max");
+      // Conversion fields: all bands or none, rising with the band, documented.
+      const bandsPath = ["gradingScales", i, "bands"];
+      for (const field of ["pctMin", "gpa"] as const) {
+        const count = sorted.filter((b) => b[field] !== undefined).length;
+        if (count !== 0 && count !== sorted.length) issue(bandsPath, `${field} must be set on every band or on none`);
+      }
+      if (scale.kind !== "percentage" && sorted.some((b) => b.pctMin === undefined))
+        issue(bandsPath, `pctMin is required on every band of a ${scale.kind} scale`);
+      const pct = sorted.map((b) => b.pctMin ?? (scale.kind === "percentage" ? b.min : undefined));
+      if (pct.every((p) => p !== undefined)) {
+        if (pct[0] !== 0) issue(bandsPath, "the lowest band's pctMin must be 0");
+        pct.forEach((p, j) => {
+          if (j > 0 && p! <= pct[j - 1]!) issue([...bandsPath, j], "pctMin must rise strictly with the band");
+        });
+      }
+      sorted.forEach((b, j) => {
+        const prev = sorted[j - 1];
+        if (prev?.gpa !== undefined && b.gpa !== undefined && b.gpa < prev.gpa)
+          issue([...bandsPath, j], "gpa must not fall as the band rises");
+      });
+      if (sorted.some((b) => b.pctMin !== undefined || b.gpa !== undefined) && !scale.conversionNote)
+        issue(["gradingScales", i, "conversionNote"], "bands with pctMin/gpa need a conversionNote");
       if (scale.defaultCategories) {
         const path = ["gradingScales", i, "defaultCategories"];
         const total = scale.defaultCategories.reduce((s, c) => s + c.weight, 0);

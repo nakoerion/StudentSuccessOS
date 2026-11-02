@@ -10,7 +10,7 @@ import type { CountryPackInput } from "../types";
 export const AE_INPUT = {
   code: "AE",
   name: "United Arab Emirates",
-  version: "1.1.0",
+  version: "1.2.0",
   researchedAt: "2026-10-26",
   supportedLocales: ["ar", "en"],
   defaultTimezone: "Asia/Dubai",
@@ -68,15 +68,26 @@ export const AE_INPUT = {
       max: 100,
       passMark: 60,
       appliesToGrades: ["9", "10", "11", "12"],
+      // Letter cut-offs 90/80/70/60 and GPA 4/3/2/1/0 are CONVENTIONAL: the UAE Ministry
+      // does not publish them. Only the pass mark 60 is cited. See conversionNote.
       bands: [
-        { min: 60, max: 100, label: "Pass", passing: true },
-        { min: 0, max: 59.99, label: "Fail", passing: false },
+        { min: 0, max: 59.99, label: "F", description: "Fail (below 60)", passing: false, gpa: 0 },
+        { min: 60, max: 69.99, label: "D", description: "Pass (60–69.99)", passing: true, gpa: 1 },
+        { min: 70, max: 79.99, label: "C", description: "Pass (70–79.99)", passing: true, gpa: 2 },
+        { min: 80, max: 89.99, label: "B", description: "Pass (80–89.99)", passing: true, gpa: 3 },
+        { min: 90, max: 100, label: "A", description: "Pass (90–100)", passing: true, gpa: 4 },
       ],
       notes:
-        "Cycle 3 (2026-27 MOE assessment policy): subject marks are recorded out of 100 (grade 12 Group A results to two decimals) and converted to letter grades on reports; promotion requires at least 60% in every Group A subject. The letter-band cut-offs are not published in the cited sources, so only the pass/fail boundary is encoded. Cycles 1–2 are not covered by a cited source yet.",
+        "Cycle 3 (2026-27 MOE assessment policy): subject marks are recorded out of 100 (grade 12 Group A results to two decimals) and converted to letter grades on reports; promotion requires at least 60% in every Group A subject. The letter-band cut-offs are not published in the cited sources: the A/B/C/D/F bands at 90/80/70/60 are a conventional default, not Ministry data. Cycles 1–2 are not covered by a cited source yet.",
+      conversionNote:
+        "Product convention — the school must confirm. Only the pass mark 60 comes from the cited source. " +
+        "The UAE Ministry does not publish letter cut-offs; A/B/C/D/F at 90/80/70/60 is a conventional default. " +
+        "Marks are percentages (identity conversion); each letter covers [pctMin, next pctMin) with pctMin = the band's min. " +
+        "GPA is the conventional 4.0 mapping A 4, B 3, C 2, D 1, F 0. Matura-equivalent is a straight line from the pass mark " +
+        "(60 → 5) to the maximum (100 → 10), anything below 60 → 4.",
       needsConfirmation: {
         by: "school",
-        note: "No single authoritative Ministry grading scale was found (only news/vendor pages). This is a starting default, not the official scale: each tenant configures its scale per curriculum (MOE, British, American, IB, …) and must confirm it.",
+        note: "No single authoritative Ministry grading scale was found (only news/vendor pages). This is a starting default, not the official scale: each tenant configures its scale per curriculum (MOE, British, American, IB, …) and must confirm it. The A/B/C/D/F cut-offs and GPA values are conventional, not Ministry data.",
       },
       sourceIds: ["ae-moe-assessment-2026-27"],
     },

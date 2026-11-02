@@ -8,3 +8,4 @@ export * from "./setup-wizard";
 export * from "./timetable";
 export * from "./timetable-import";
 export * from "./attendance";
+export * from "./gradebook";
