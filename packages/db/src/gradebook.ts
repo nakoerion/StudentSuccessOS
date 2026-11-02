@@ -111,12 +111,9 @@ export function toScaleDef(row: ScaleRowLike | { kind: string; min: Num; max: Nu
   const bands = (row.bands as Record<string, unknown>[]).map((b): ScaleBand => {
     const bMin = Number(b.min);
     const bMax = Number(b.max);
+    // Default: the band's min as a percentage (= min itself on a 0–100 percentage scale).
     const pctMin =
-      typeof b.pctMin === "number"
-        ? b.pctMin
-        : row.kind === "percentage"
-          ? new Decimal(bMin).div(max).mul(100).toNumber()
-          : new Decimal(bMin).div(max).mul(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
+      typeof b.pctMin === "number" ? b.pctMin : new Decimal(bMin).div(max).mul(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
     const band: ScaleBand = {
       min: bMin,
       max: bMax,
