@@ -438,6 +438,87 @@ The rate is country-agnostic.
   `TENANT_DERIVED_VIEWS` (`20261029000100_rls`, the current `DEFAULT_RLS_MIGRATION`).
   `listAttendanceRates(tx, { studentPersonId?, termId? })` reads it inside `withTenant`.
 
+### Gradebook (service layer)
+
+`packages/db/src/gradebook.ts`, exported from `@ssos/db`. No new tables: it writes
+`grade_entry` (+ `event`) and the derived `term_grade` / `annual_grade`, and reads
+`grade_scale`. Writes run as the **owner** role with explicit `tenant_id` filters and a
+per-enrollment advisory lock; reads work on an owner client or inside `withTenant`.
+Nothing branches on country — every conversion is driven by the scale row's `kind` and `bands`.
+
+- `recordGradeEntry(ownerDb, { tenantId, enrollmentId, assessmentCategoryId, termId, rawMark, gradeScaleId?, assignmentId?, gradedByPersonId?, actorUserId?, comment?, gradedAt? })`
+  — `gradeScaleId` defaults to the course's scale. Validates that enrollment, category, term,
+  scale (the tenant's own override or a default of the tenant's pack), grader and assignment
+  are the tenant's; that the category belongs to the enrollment's course; that the term is in
+  the course's academic year; and that `rawMark` is a number (or plain numeric string) within
+  the scale's `min_value..max_value`. The mark is stored to 2 dp (half-up). Writes **exactly
+  one** `event` (`type = "grade_entry.created"`, `entity_type = "grade_entry"`, subject = the
+  student, actor = the grader, `payload = { rawMark, categoryId, termId, scaleId }`) in the
+  same transaction. Throws `GradebookError` (`code`): `unknown_enrollment`, `unknown_category`,
+  `unknown_term`, `unknown_scale`, `unknown_grader`, `unknown_assignment`,
+  `category_course_mismatch`, `term_year_mismatch`, `mark_out_of_range`, `not_a_number`.
+- `deriveTermGrade(ownerDb, { tenantId, enrollmentId, termId })` — upserts `term_grade` with the
+  converted scale `value`, the `percentage` (0–100) and an `inputs` snapshot (per category:
+  weight, entry count, average). Codes: `no_grade_entries`, `zero_total_weight`, plus the
+  enrollment/term/scale codes above.
+- `deriveAnnualGrade(ownerDb, { tenantId, enrollmentId, academicYearId })` — upserts
+  `annual_grade`. Codes: `unknown_academic_year`, `no_term_grades`.
+- Reads: `listGradeEntries(db, { tenantId, enrollmentId?, termId?, assessmentCategoryId?, studentPersonId? })`,
+  `getTermGrade(db, { tenantId, enrollmentId, termId })`, `getAnnualGrade(db, { tenantId, enrollmentId, academicYearId })`
+  (views add `label`, `passing`, `gpa`, `matura`).
+- Pure helpers: `toScaleDef`, `bandForPercentage`, `percentageToScaleValue`,
+  `scaleValueToPercentage`, `percentageToGpa`, `scaleValueToGpa`, `scaleValueToMatura`,
+  `percentageToMatura`, `convertPercentage` (value, label, pass/fail, GPA and Matura together),
+  `weightedPercentage`, `equalWeightedMean`.
+
+**Formula** (exact decimals via `Prisma.Decimal`, never floats; rounded **half-up to 2 dp** once, at the end):
+
+```
+entry %        = raw_mark ÷ scale.max × 100              (identity on a 0–100 percentage scale)
+category avg   = mean(entry %) of the category's entries in the term
+term %         = Σ(category avg × weight) ÷ Σ(weight)     categories without marks are skipped;
+                                                          weights need NOT sum to 100
+annual %       = mean(stored term %) of the academic year   each term counts equally; terms
+                                                          without a derived grade are skipped
+```
+
+So 74.995 % → 75.00 → AL mark 8, while 74.994 % → 74.99 → 7.
+
+**Conversions** (all product conventions the school must confirm — see each pack's
+`conversionNote`; only the pass marks come from cited sources):
+
+| Conversion | Rule |
+| --- | --- |
+| mark → % | mark ÷ max × 100 (identity on a percentage scale) |
+| % → mark | the band whose `[pctMin, next pctMin)` contains it; on a percentage scale the % itself |
+| GPA (4.0) | the band's `gpa` |
+| Matura-equivalent (4–10) | straight line pass mark → 5 … max → 10; below the pass mark → 4 (on AL 4–10 it equals the mark) |
+
+| AL mark | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| % from (`pctMin`) | 0 | 45 | 55 | 65 | 75 | 85 | 95 |
+| GPA (NAIA/NCAA reference table) | 0 | 2.0 | 2.0 | 3.0 | 3.0 | 4.0 | 4.0 |
+
+| AE letter | F | D | C | B | A |
+| --- | --- | --- | --- | --- | --- |
+| % from | 0 | 60 | 70 | 80 | 90 |
+| GPA | 0 | 1 | 2 | 3 | 4 |
+
+The AE letter cut-offs are conventional — the UAE Ministry does not publish them.
+
+**Band shape** (`grade_scale.bands`, country pack 1.2.0):
+`{ min, max, label, description?, passing, pctMin?, gpa? }` — `pctMin` is the lowest percentage
+in the band (required on non-percentage scales, defaults to `min` on percentage scales), `gpa`
+the 4.0-scale points. The pack schema requires a scale-level `conversionNote` whenever bands
+carry these fields, and `pctMin`/`gpa` on every band or none, rising with the band (lowest
+`pctMin` = 0). A hand-made tenant scale without `pctMin` falls back to `min ÷ max × 100`.
+
+**Seeded tables.** `pnpm db:seed` writes the 1.2.0 bands into the pack-default `grade_scale`
+rows (`al-4-10`, `ae-moe-percentage`). The demo tenants have `assessment_category` rows
+(3 per course, weights 40/30/30) but no `grade_entry`, `term_grade` or `annual_grade` rows —
+tests create and roll back their own. `term_grade` / `annual_grade` are `derived` in
+`rls/tables.ts`: `ssos_app` holds **SELECT only**, so they can never be hand-edited.
+
 ## Seed
 
 `pnpm db:seed` — deterministic (UUIDv5-style ids, seeded PRNG, hand-written name
