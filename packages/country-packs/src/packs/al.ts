@@ -8,7 +8,7 @@ import type { CountryPackInput } from "../types";
 export const AL_INPUT = {
   code: "AL",
   name: "Albania",
-  version: "1.1.0",
+  version: "1.2.0",
   researchedAt: "2026-10-26",
   supportedLocales: ["sq", "en"],
   defaultTimezone: "Europe/Tirane",
@@ -68,17 +68,24 @@ export const AL_INPUT = {
       max: 10,
       passMark: 5,
       appliesToGrades: ["4", "5", "6", "7", "8", "9", "10", "11", "12"],
+      // pctMin / gpa are product conventions (see conversionNote), not cited facts.
       bands: [
-        { min: 4, max: 4, label: "4", description: "Niveli I — pakaluese", passing: false },
-        { min: 5, max: 5, label: "5", description: "Niveli II", passing: true },
-        { min: 6, max: 6, label: "6", description: "Niveli II", passing: true },
-        { min: 7, max: 7, label: "7", description: "Niveli III", passing: true },
-        { min: 8, max: 8, label: "8", description: "Niveli III", passing: true },
-        { min: 9, max: 9, label: "9", description: "Niveli IV", passing: true },
-        { min: 10, max: 10, label: "10", description: "Niveli IV", passing: true },
+        { min: 4, max: 4, label: "4", description: "Niveli I — pakaluese", passing: false, pctMin: 0, gpa: 0 },
+        { min: 5, max: 5, label: "5", description: "Niveli II", passing: true, pctMin: 45, gpa: 2 },
+        { min: 6, max: 6, label: "6", description: "Niveli II", passing: true, pctMin: 55, gpa: 2 },
+        { min: 7, max: 7, label: "7", description: "Niveli III", passing: true, pctMin: 65, gpa: 3 },
+        { min: 8, max: 8, label: "8", description: "Niveli III", passing: true, pctMin: 75, gpa: 3 },
+        { min: 9, max: 9, label: "9", description: "Niveli IV", passing: true, pctMin: 85, gpa: 4 },
+        { min: 10, max: 10, label: "10", description: "Niveli IV", passing: true, pctMin: 95, gpa: 4 },
       ],
       notes:
         "Whole-number marks 4–10; 4 is the only failing mark. Grades 1–3 are assessed descriptively (achievement levels), not with marks.",
+      conversionNote:
+        "Product convention — the school must confirm. Only the 4–10 marks and the pass mark 5 come from the cited sources. " +
+        "The weighted term percentage maps to a mark with the cut-offs 0/45/55/65/75/85/95 (each mark covers [pctMin, next pctMin)); " +
+        "a mark maps back to a percentage as mark ÷ 10 × 100. GPA follows the NAIA/NCAA reference table for Albanian marks " +
+        "(10 and 9 → 4.0, 8 and 7 → 3.0, 6 and 5 → 2.0, 4 → 0). Matura-equivalent is a straight line from the pass mark (→ 5) " +
+        "to the maximum (→ 10), anything below the pass mark → 4, so on this scale it equals the mark.",
       sourceIds: ["al-ascap-assessment-framework", "al-grading-levels"],
     },
   ],

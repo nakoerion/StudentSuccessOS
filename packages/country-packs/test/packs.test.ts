@@ -123,6 +123,63 @@ describe("owner policy decisions (2026-10-26)", () => {
   });
 });
 
+describe("grade-scale conversion bands (pack 1.2.0)", () => {
+  it("AL 4–10: cut-offs 0/45/55/65/75/85/95 + NAIA/NCAA GPA; AE: A/B/C/D/F at 90/80/70/60, GPA 4–0; both carry a conversionNote", () => {
+    expect([AL.version, AE.version]).toEqual(["1.2.0", "1.2.0"]);
+    const al = AL.gradingScales[0]!;
+    expect(al.bands.map((b) => [b.label, b.pctMin, b.gpa])).toEqual([
+      ["4", 0, 0],
+      ["5", 45, 2],
+      ["6", 55, 2],
+      ["7", 65, 3],
+      ["8", 75, 3],
+      ["9", 85, 4],
+      ["10", 95, 4],
+    ]);
+    expect(al.conversionNote).toMatch(/school must confirm/);
+    expect(al.conversionNote).toMatch(/NAIA\/NCAA/);
+    const ae = AE.gradingScales[0]!;
+    expect(ae.bands.map((b) => [b.label, b.min, b.gpa, b.passing])).toEqual([
+      ["F", 0, 0, false],
+      ["D", 60, 1, true],
+      ["C", 70, 2, true],
+      ["B", 80, 3, true],
+      ["A", 90, 4, true],
+    ]);
+    expect(ae.conversionNote).toMatch(/school must confirm/);
+    expect(ae.conversionNote).toMatch(/does not publish/);
+    // No new source was invented for the conversions.
+    expect(AL.sources).toHaveLength(AL_INPUT.sources.length);
+    expect(ae.sourceIds).toEqual(["ae-moe-assessment-2026-27"]);
+  });
+
+  it("rejects partial gpa/pctMin, non-rising pctMin or gpa, a numeric scale without pctMin, and bands without a conversionNote", () => {
+    const errorsOf = (mutate: (p: CountryPackInput) => void) => {
+      const bad = clone(AL_INPUT);
+      mutate(bad);
+      const r = countryPackSchema.safeParse(bad);
+      return r.success ? [] : r.error.issues.map((i) => i.message);
+    };
+    const bands = (p: CountryPackInput) => p.gradingScales[0]!.bands;
+    expect(errorsOf(() => {})).toEqual([]);
+    expect(errorsOf((p) => delete bands(p)[3]!.gpa)).toContain("gpa must be set on every band or on none");
+    expect(errorsOf((p) => (bands(p)[2]!.pctMin = 40))).toContain("pctMin must rise strictly with the band");
+    expect(errorsOf((p) => (bands(p)[6]!.gpa = 1))).toContain("gpa must not fall as the band rises");
+    expect(errorsOf((p) => (bands(p)[0]!.pctMin = 5))).toContain("the lowest band's pctMin must be 0");
+    expect(
+      errorsOf((p) => {
+        for (const b of bands(p)) delete b.pctMin;
+      }),
+    ).toContain("pctMin is required on every band of a numeric scale");
+    expect(errorsOf((p) => delete p.gradingScales[0]!.conversionNote)).toContain("bands with pctMin/gpa need a conversionNote");
+    // A percentage scale may omit pctMin (defaults to min), but still needs the note when gpa is set.
+    const ae = clone(AE_INPUT);
+    expect(countryPackSchema.safeParse(ae).success).toBe(true);
+    delete ae.gradingScales[0]!.conversionNote;
+    expect(countryPackSchema.safeParse(ae).success).toBe(false);
+  });
+});
+
 describe("validation fails loudly on malformed packs", () => {
   it("rejects a citation to a source that does not exist", () => {
     const bad = clone(AL_INPUT);
