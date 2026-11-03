@@ -11,6 +11,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { createAdminClient } from "../src/client";
 import { PERMISSIONS, ROLE_PERMISSIONS, SYSTEM_ROLES, type SystemRoleKey } from "../src/system-roles";
 import { runSetupWizard } from "../src/setup-wizard";
+import { createSuccessDefaults } from "../src/success-defaults";
 import { seedConcepts } from "./academic";
 import { pick, prng, seedId, seedToken } from "./deterministic";
 import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture, tenantDefaultLocale } from "./fixtures";
@@ -304,6 +305,9 @@ async function seedTenant(
     pack: packData,
     newId: (table, ...key) => seedId(f.slug, table, ...key),
   });
+
+  // Success engine defaults: risk weights v1 (active) + alert rules with SLA ladders.
+  await createSuccessDefaults(tx, tenantId, (table, key) => seedId(f.slug, table, key));
 
   await tx.auditLog.create({
     data: {

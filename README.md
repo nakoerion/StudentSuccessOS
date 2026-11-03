@@ -435,7 +435,7 @@ The rate is country-agnostic.
   (no privileges). It reads the generated view **`attendance_rate`**:
   `SELECT * FROM attendance_rate_mv WHERE tenant_id = <the RLS template's tenant predicate>`,
   `security_barrier`, `GRANT SELECT` only — emitted by `rls/generate.ts` from
-  `TENANT_DERIVED_VIEWS` (`20261029000100_rls`, the current `DEFAULT_RLS_MIGRATION`).
+  `TENANT_DERIVED_VIEWS` (`20261029000100_rls`; re-emitted in `20261103000100_rls`, the current `DEFAULT_RLS_MIGRATION`).
   `listAttendanceRates(tx, { studentPersonId?, termId? })` reads it inside `withTenant`.
 
 ### Gradebook (service layer)
@@ -518,6 +518,20 @@ rows (`al-4-10`, `ae-moe-percentage`). The demo tenants have `assessment_categor
 (3 per course, weights 40/30/30) but no `grade_entry`, `term_grade` or `annual_grade` rows —
 tests create and roll back their own. `term_grade` / `annual_grade` are `derived` in
 `rls/tables.ts`: `ssos_app` holds **SELECT only**, so they can never be hand-edited.
+
+### Success engine (data model)
+
+Slice 1 of the success engine is schema only (`20261103000000_success_engine`, RLS in
+`20261103000100_rls`): `risk_model_config` (versioned weights, one active per tenant),
+`risk_score` (0–100, band, factors + cohort baseline JSON, model version), `track_assignment`
+(`excellence|growth|support`, one active per student), `action_card`
+(`proposed|approved|edited|dismissed|expired`), `alert_rule` (threshold + escalation ladder with
+`slaMinutes`), `alert` (one unresolved per rule x student), `intervention` (risk before/after,
+outcome), `intervention_task`, `goal`, `goal_progress`, `nudge` (one per goal per ISO week).
+All are tenant-scoped `read_write` through the one RLS template. `pnpm db:seed` gives each demo
+tenant the defaults from `src/success-defaults.ts` (identical for every country): risk weights v1
+and four alert rules (`risk_high`, `risk_critical`, `attendance_low`, `late_submissions`), each
+escalating teacher -> advisor -> parent. Services, subscribers and UI come in later slices.
 
 ## Seed
 

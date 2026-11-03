@@ -72,6 +72,18 @@ export const TENANT_SCOPED_TABLES: readonly TenantScopedTable[] = [
   { model: "Event", table: "event", scope: "tenant", access: "append_only" },
   { model: "Edge", table: "edge", scope: "tenant" },
   { model: "MasteryState", table: "mastery_state", scope: "tenant" },
+  // Success engine.
+  { model: "RiskModelConfig", table: "risk_model_config", scope: "tenant" },
+  { model: "RiskScore", table: "risk_score", scope: "tenant" },
+  { model: "TrackAssignment", table: "track_assignment", scope: "tenant" },
+  { model: "ActionCard", table: "action_card", scope: "tenant" },
+  { model: "AlertRule", table: "alert_rule", scope: "tenant" },
+  { model: "Alert", table: "alert", scope: "tenant" },
+  { model: "Intervention", table: "intervention", scope: "tenant" },
+  { model: "InterventionTask", table: "intervention_task", scope: "tenant" },
+  { model: "Goal", table: "goal", scope: "tenant" },
+  { model: "GoalProgress", table: "goal_progress", scope: "tenant" },
+  { model: "Nudge", table: "nudge", scope: "tenant" },
 ];
 
 /**
