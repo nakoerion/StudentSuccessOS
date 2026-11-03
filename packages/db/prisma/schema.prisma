@@ -94,6 +94,19 @@ model Tenant {
   edges                Edge[]
   masteryStates        MasteryState[]
 
+  // Success engine
+  riskModelConfigs  RiskModelConfig[]
+  riskScores        RiskScore[]
+  trackAssignments  TrackAssignment[]
+  actionCards       ActionCard[]
+  alertRules        AlertRule[]
+  alerts            Alert[]
+  interventions     Intervention[]
+  interventionTasks InterventionTask[]
+  goals             Goal[]
+  goalProgress      GoalProgress[]
+  nudges            Nudge[]
+
   @@index([countryPackId])
   @@map("tenant")
 }
@@ -281,6 +294,20 @@ model Person {
   eventsActed        Event[]             @relation("EventActor")
   eventsAbout        Event[]             @relation("EventSubject")
   masteryStates      MasteryState[]      @relation("MasteryStudent")
+
+  // Success engine
+  riskModelConfigsCreated RiskModelConfig[]  @relation("RiskModelConfigCreator")
+  riskScores              RiskScore[]        @relation("RiskScoreStudent")
+  trackAssignments        TrackAssignment[]  @relation("TrackAssignmentStudent")
+  actionCardsAbout        ActionCard[]       @relation("ActionCardSubject")
+  actionCardsDecided      ActionCard[]       @relation("ActionCardDecider")
+  alerts                  Alert[]            @relation("AlertStudent")
+  interventions           Intervention[]     @relation("InterventionStudent")
+  interventionsOwned      Intervention[]     @relation("InterventionOwner")
+  interventionTasks       InterventionTask[] @relation("InterventionTaskAssignee")
+  goals                   Goal[]             @relation("GoalStudent")
+  goalsCreated            Goal[]             @relation("GoalCreator")
+  nudgesReceived          Nudge[]            @relation("NudgeRecipient")
 
   @@unique([tenantId, id])
   @@unique([tenantId, userAccountId])
@@ -1044,4 +1071,464 @@ model MasteryState {
   @@index([tenantId])
   @@index([conceptId])
   @@map("mastery_state")
+}
+
+// ─── Success engine (slice 1 — data model only) ──────────────────────────────
+//
+// Risk scores, tracks, action cards, alerts, interventions, goals and nudges.
+// Every table is tenant-owned (tenant_id NOT NULL, one RLS template) and points at
+// other tenant rows through composite FKs (tenant_id, x_id). Hand-written integrity
+// rules (0–100 score, 0–1 confidence, one active config / track per student, one
+// open alert per rule x student) live in the migration as CHECKs / partial indexes.
+// Track transitions and interventions are only ever proposed as action cards.
+
+enum RiskBand {
+  low
+  moderate
+  high
+  critical
+
+  @@map("risk_band")
+}
+
+enum StudentTrack {
+  excellence
+  growth
+  support
+
+  @@map("student_track")
+}
+
+enum TrackAssignmentStatus {
+  active
+  superseded
+  ended
+
+  @@map("track_assignment_status")
+}
+
+enum ActionCardType {
+  track_transition
+  intervention
+  goal
+  alert_followup
+
+  @@map("action_card_type")
+}
+
+enum ActionCardStatus {
+  proposed
+  approved
+  edited
+  dismissed
+  expired
+
+  @@map("action_card_status")
+}
+
+enum AlertSeverity {
+  info
+  warning
+  critical
+
+  @@map("alert_severity")
+}
+
+enum AlertState {
+  open
+  acknowledged
+  escalated
+  resolved
+  dismissed
+
+  @@map("alert_state")
+}
+
+enum InterventionSeverity {
+  low
+  medium
+  high
+
+  @@map("intervention_severity")
+}
+
+enum InterventionStatus {
+  planned
+  active
+  completed
+  cancelled
+
+  @@map("intervention_status")
+}
+
+enum InterventionOutcome {
+  improved
+  no_change
+  worsened
+  inconclusive
+
+  @@map("intervention_outcome")
+}
+
+enum InterventionTaskStatus {
+  todo
+  in_progress
+  done
+  skipped
+
+  @@map("intervention_task_status")
+}
+
+enum GoalStatus {
+  draft
+  active
+  achieved
+  missed
+  cancelled
+
+  @@map("goal_status")
+}
+
+enum NudgeChannel {
+  in_app
+  email
+
+  @@map("nudge_channel")
+}
+
+enum NudgeStatus {
+  scheduled
+  sent
+  skipped
+  cancelled
+
+  @@map("nudge_status")
+}
+
+/// Per-tenant, versioned risk weights. A new version is a new row; exactly one is active.
+model RiskModelConfig {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  version           Int
+  /// { gradeLevel, gradeTrend, attendanceLevel, attendanceTrend, lateMissing, engagement, concernNotes } -> weight.
+  weights           Json
+  /// Band cut-offs on the 0–100 score: { moderate, high, critical } (score >= value).
+  bandThresholds    Json      @map("band_thresholds")
+  isActive          Boolean   @default(false) @map("is_active")
+  activatedAt       DateTime? @map("activated_at") @db.Timestamptz(6)
+  createdByPersonId String?   @map("created_by_person_id") @db.Uuid
+  note              String?
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy  Person?     @relation("RiskModelConfigCreator", fields: [tenantId, createdByPersonId], references: [tenantId, id], onDelete: NoAction)
+  riskScores RiskScore[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, version])
+  @@index([tenantId])
+  @@map("risk_model_config")
+}
+
+/// One computed risk score per (student, computation). History is kept; latest = max(computed_at).
+model RiskScore {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  studentPersonId String   @map("student_person_id") @db.Uuid
+  modelConfigId   String   @map("model_config_id") @db.Uuid
+  modelVersion    Int      @map("model_version")
+  /// 0–100.
+  score           Decimal  @db.Decimal(5, 2)
+  band            RiskBand
+  /// [{ factor, value, weight, contribution, baseline }] — contributions sum to score; top-4 surfaced.
+  factors         Json     @default("[]")
+  /// Grade-cohort baseline the factors are measured against: { grade, cohortSize, factors: { key: value } }.
+  cohortBaseline  Json     @default("{}") @map("cohort_baseline")
+  computedAt      DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student     Person          @relation("RiskScoreStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  modelConfig RiskModelConfig @relation(fields: [tenantId, modelConfigId], references: [tenantId, id], onDelete: Restrict)
+  actionCards ActionCard[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, studentPersonId, computedAt(sort: Desc)])
+  @@index([tenantId, band])
+  @@map("risk_score")
+}
+
+/// A student's track. Created only when an action card is approved/edited (never automatically).
+model TrackAssignment {
+  id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String                @map("tenant_id") @db.Uuid
+  studentPersonId String                @map("student_person_id") @db.Uuid
+  track           StudentTrack
+  status          TrackAssignmentStatus @default(active)
+  /// [{ type: "risk_score"|"grade_entry"|"attendance_event"|"note"|..., id }].
+  evidenceRefs    Json                  @default("[]") @map("evidence_refs")
+  /// 0–1.
+  confidence      Decimal               @db.Decimal(4, 3)
+  effectiveDate   DateTime              @map("effective_date") @db.Date
+  reviewDate      DateTime?             @map("review_date") @db.Date
+  /// The approved card this assignment came from.
+  actionCardId    String?               @map("action_card_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student    Person      @relation("TrackAssignmentStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  actionCard ActionCard? @relation(fields: [tenantId, actionCardId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@index([tenantId, studentPersonId, effectiveDate(sort: Desc)])
+  @@index([tenantId, track, status])
+  @@map("track_assignment")
+}
+
+/// A proposed change awaiting a human decision (approve / edit / dismiss).
+model ActionCard {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String           @map("tenant_id") @db.Uuid
+  type              ActionCardType
+  subjectPersonId   String           @map("subject_person_id") @db.Uuid
+  /// [{ type, id }] — what the proposal is based on.
+  evidenceRefs      Json             @default("[]") @map("evidence_refs")
+  /// 0–1.
+  confidence        Decimal          @db.Decimal(4, 3)
+  /// What would be applied on approval (e.g. { track: "support", reviewDate } or an intervention template).
+  proposedPayload   Json             @map("proposed_payload")
+  /// The payload actually applied when status = edited.
+  decidedPayload    Json?            @map("decided_payload")
+  /// System role key expected to decide (teacher | advisor | admin ...).
+  assigneeRole      String           @map("assignee_role")
+  status            ActionCardStatus @default(proposed)
+  sourceRiskScoreId String?          @map("source_risk_score_id") @db.Uuid
+  decidedByPersonId String?          @map("decided_by_person_id") @db.Uuid
+  decidedAt         DateTime?        @map("decided_at") @db.Timestamptz(6)
+  decisionNote      String?          @map("decision_note")
+  expiresAt         DateTime?        @map("expires_at") @db.Timestamptz(6)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subject          Person            @relation("ActionCardSubject", fields: [tenantId, subjectPersonId], references: [tenantId, id], onDelete: Cascade)
+  decidedBy        Person?           @relation("ActionCardDecider", fields: [tenantId, decidedByPersonId], references: [tenantId, id], onDelete: NoAction)
+  sourceRiskScore  RiskScore?        @relation(fields: [tenantId, sourceRiskScoreId], references: [tenantId, id], onDelete: NoAction)
+  trackAssignments TrackAssignment[]
+  interventions    Intervention[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, status, assigneeRole])
+  @@index([tenantId, subjectPersonId, createdAt(sort: Desc)])
+  @@map("action_card")
+}
+
+/// Per-tenant alert thresholds and escalation ladder.
+model AlertRule {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String        @map("tenant_id") @db.Uuid
+  key        String
+  name       String
+  /// Metric the rule watches, e.g. "risk_score", "attendance_rate", "late_submissions".
+  metric     String
+  /// { op: "gte"|"lte"|..., value, windowDays? }.
+  threshold  Json
+  severity   AlertSeverity @default(warning)
+  /// Ordered ladder: [{ level, role: "teacher"|"advisor"|"parent", slaMinutes }].
+  escalation Json
+  isActive   Boolean       @default(true) @map("is_active")
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  alerts Alert[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("alert_rule")
+}
+
+model Alert {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String        @map("tenant_id") @db.Uuid
+  ruleId           String        @map("rule_id") @db.Uuid
+  studentPersonId  String        @map("student_person_id") @db.Uuid
+  state            AlertState    @default(open)
+  severity         AlertSeverity
+  /// Current rung of the rule's escalation ladder (0 = first).
+  escalationLevel  Int           @default(0) @map("escalation_level")
+  /// Role currently on the hook (from the ladder).
+  assigneeRole     String        @map("assignee_role")
+  /// SLA timer: escalate if not acknowledged by then.
+  dueAt            DateTime?     @map("due_at") @db.Timestamptz(6)
+  /// Value that triggered the alert and its evidence: { value, evidenceRefs }.
+  trigger          Json          @default("{}")
+  /// [{ personId, role, at, note? }].
+  acknowledgements Json          @default("[]")
+  triggeredAt      DateTime      @default(now()) @map("triggered_at") @db.Timestamptz(6)
+  escalatedAt      DateTime?     @map("escalated_at") @db.Timestamptz(6)
+  resolvedAt       DateTime?     @map("resolved_at") @db.Timestamptz(6)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rule          AlertRule      @relation(fields: [tenantId, ruleId], references: [tenantId, id], onDelete: Cascade)
+  student       Person         @relation("AlertStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  interventions Intervention[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, state, dueAt])
+  @@index([tenantId, studentPersonId])
+  @@map("alert")
+}
+
+model Intervention {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String               @map("tenant_id") @db.Uuid
+  studentPersonId String               @map("student_person_id") @db.Uuid
+  /// Template the intervention was created from (templates live in code / a later slice).
+  templateKey     String?              @map("template_key")
+  /// e.g. "academic_tutoring", "attendance_plan", "mentoring", "family_meeting".
+  type            String
+  severity        InterventionSeverity @default(medium)
+  ownerPersonId   String?              @map("owner_person_id") @db.Uuid
+  status          InterventionStatus   @default(planned)
+  actionCardId    String?              @map("action_card_id") @db.Uuid
+  alertId         String?              @map("alert_id") @db.Uuid
+  startedOn       DateTime?            @map("started_on") @db.Date
+  endedOn         DateTime?            @map("ended_on") @db.Date
+  outcome         InterventionOutcome?
+  outcomeNote     String?              @map("outcome_note")
+  /// Risk score at start / at close (0–100), captured for outcome measurement.
+  riskBefore      Decimal?             @map("risk_before") @db.Decimal(5, 2)
+  riskAfter       Decimal?             @map("risk_after") @db.Decimal(5, 2)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student    Person             @relation("InterventionStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  owner      Person?            @relation("InterventionOwner", fields: [tenantId, ownerPersonId], references: [tenantId, id], onDelete: NoAction)
+  actionCard ActionCard?        @relation(fields: [tenantId, actionCardId], references: [tenantId, id], onDelete: NoAction)
+  alert      Alert?             @relation(fields: [tenantId, alertId], references: [tenantId, id], onDelete: NoAction)
+  tasks      InterventionTask[]
+  goals      Goal[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, studentPersonId])
+  @@index([tenantId, status])
+  @@index([tenantId, ownerPersonId])
+  @@map("intervention")
+}
+
+model InterventionTask {
+  id               String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String                 @map("tenant_id") @db.Uuid
+  interventionId   String                 @map("intervention_id") @db.Uuid
+  sequence         Int                    @default(0)
+  title            String
+  assigneePersonId String?                @map("assignee_person_id") @db.Uuid
+  dueOn            DateTime?              @map("due_on") @db.Date
+  status           InterventionTaskStatus @default(todo)
+  completedAt      DateTime?              @map("completed_at") @db.Timestamptz(6)
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  intervention Intervention @relation(fields: [tenantId, interventionId], references: [tenantId, id], onDelete: Cascade)
+  assignee     Person?      @relation("InterventionTaskAssignee", fields: [tenantId, assigneePersonId], references: [tenantId, id], onDelete: NoAction)
+
+  @@index([tenantId])
+  @@index([tenantId, interventionId, sequence])
+  @@index([tenantId, assigneePersonId, status])
+  @@map("intervention_task")
+}
+
+/// SMART goal: a measurable metric, a target and a deadline.
+model Goal {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String     @map("tenant_id") @db.Uuid
+  studentPersonId   String     @map("student_person_id") @db.Uuid
+  title             String
+  /// e.g. "attendance_rate", "course_average", "late_submissions".
+  metric            String
+  /// Metric scope, e.g. { courseId } or { termId }.
+  metricParams      Json       @default("{}") @map("metric_params")
+  baseline          Decimal?   @db.Decimal(8, 2)
+  target            Decimal    @db.Decimal(8, 2)
+  deadline          DateTime   @db.Date
+  status            GoalStatus @default(active)
+  interventionId    String?    @map("intervention_id") @db.Uuid
+  createdByPersonId String?    @map("created_by_person_id") @db.Uuid
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student      Person         @relation("GoalStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  createdBy    Person?        @relation("GoalCreator", fields: [tenantId, createdByPersonId], references: [tenantId, id], onDelete: NoAction)
+  intervention Intervention?  @relation(fields: [tenantId, interventionId], references: [tenantId, id], onDelete: NoAction)
+  progress     GoalProgress[]
+  nudges       Nudge[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, studentPersonId, status])
+  @@index([tenantId, status, deadline])
+  @@map("goal")
+}
+
+/// Computed progress samples for a goal.
+model GoalProgress {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  goalId      String   @map("goal_id") @db.Uuid
+  measuredAt  DateTime @default(now()) @map("measured_at") @db.Timestamptz(6)
+  value       Decimal  @db.Decimal(8, 2)
+  /// 0–100 progress from baseline towards target.
+  progressPct Decimal  @map("progress_pct") @db.Decimal(5, 2)
+  /// What triggered the recompute (event type or "nightly").
+  source      String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  goal   Goal   @relation(fields: [tenantId, goalId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, goalId, measuredAt(sort: Desc)])
+  @@map("goal_progress")
+}
+
+/// At most one nudge per goal per week (unique on week_start).
+model Nudge {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String       @map("tenant_id") @db.Uuid
+  goalId            String       @map("goal_id") @db.Uuid
+  recipientPersonId String       @map("recipient_person_id") @db.Uuid
+  /// Monday of the ISO week the nudge belongs to.
+  weekStart         DateTime     @map("week_start") @db.Date
+  channel           NudgeChannel @default(in_app)
+  status            NudgeStatus  @default(scheduled)
+  /// Message key + params, rendered in the recipient's locale.
+  payload           Json         @default("{}")
+  scheduledFor      DateTime     @map("scheduled_for") @db.Timestamptz(6)
+  sentAt            DateTime?    @map("sent_at") @db.Timestamptz(6)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  goal      Goal   @relation(fields: [tenantId, goalId], references: [tenantId, id], onDelete: Cascade)
+  recipient Person @relation("NudgeRecipient", fields: [tenantId, recipientPersonId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, goalId, weekStart])
+  @@index([tenantId])
+  @@index([tenantId, status, scheduledFor])
+  @@map("nudge")
 }

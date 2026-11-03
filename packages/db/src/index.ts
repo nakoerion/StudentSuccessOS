@@ -9,3 +9,4 @@ export * from "./timetable";
 export * from "./timetable-import";
 export * from "./attendance";
 export * from "./gradebook";
+export * from "./success-defaults";
