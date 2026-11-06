@@ -65,9 +65,13 @@ async function buildChain(db: PrismaClient | TenantTx, tenantId: string, scoreDb
       sourceRiskScoreId: score.id,
     },
   });
-  const track = await db.trackAssignment.create({
-    data: { tenantId, studentPersonId: student.id, track: "support", status: "ended", confidence: "0.800", effectiveDate: monday, actionCardId: card.id },
+  // Only an approved card can create a track assignment (track_assignment_guard), and a new
+  // assignment starts active; it may then only be retired.
+  await db.actionCard.update({ where: { id: card.id }, data: { status: "approved", decidedAt: monday, decidedPayload: { track: "support" } } });
+  const created = await db.trackAssignment.create({
+    data: { tenantId, studentPersonId: student.id, track: "support", status: "active", confidence: "0.800", effectiveDate: monday, actionCardId: card.id },
   });
+  const track = await db.trackAssignment.update({ where: { id: created.id }, data: { status: "ended" } });
   const rule = await db.alertRule.create({
     data: {
       tenantId,
@@ -200,8 +204,9 @@ describe("success engine: tenant isolation", () => {
       TENANT_A,
       async (tx) => {
         let n = 0;
-        // risk_score is engine-owned: the app role has no UPDATE/DELETE at all (risk-model.test.ts).
-        for (const t of SUCCESS_TABLES.filter((x) => x !== "risk_score")) {
+        // risk_score and risk_model_config are engine-owned: the app role has no UPDATE/DELETE
+        // at all (asserted in "integrity rules" below and in risk-model.test.ts).
+        for (const t of SUCCESS_TABLES.filter((x) => x !== "risk_score" && x !== "risk_model_config")) {
           n += await tx.$executeRawUnsafe(`UPDATE "${t}" SET updated_at = now() WHERE id = $1::uuid`, probe[t]);
           n += await tx.$executeRawUnsafe(`DELETE FROM "${t}" WHERE id = $1::uuid`, probe[t]);
         }
@@ -289,13 +294,27 @@ describe("success engine: integrity rules", () => {
   });
 
   it("allows only one active risk model config per tenant", async () => {
+    // Owner: risk_model_config is engine-owned (the app role cannot insert at all).
     await expect(
-      withTenant(
-        TENANT_A,
-        (tx) => tx.riskModelConfig.create({ data: { tenantId: TENANT_A, version: 2, weights: {}, bandThresholds: {}, isActive: true } }),
-        { client: app },
-      ),
+      owner.riskModelConfig.create({ data: { tenantId: TENANT_A, version: 2, weights: {}, bandThresholds: {}, isActive: true } }),
     ).rejects.toThrow(/Unique constraint/i);
+  });
+
+  it("risk_model_config is engine-owned: the app role can read it but never write it", async () => {
+    const config = await owner.riskModelConfig.findFirstOrThrow({ where: { tenantId: TENANT_A, isActive: true } });
+    const seen = await withTenant(TENANT_A, (tx) => tx.riskModelConfig.count({ where: { id: config.id } }), { client: app });
+    expect(seen).toBe(1);
+    const attempts: [string, (tx: TenantTx) => Promise<unknown>][] = [
+      ["insert", (tx) => tx.riskModelConfig.create({ data: { tenantId: TENANT_A, version: 50, weights: { gradeLevel: 1 }, bandThresholds: {} } })],
+      ["update", (tx) => tx.$executeRawUnsafe(`UPDATE "risk_model_config" SET weights = '{"gradeLevel":1}' WHERE id = $1::uuid`, config.id)],
+      ["delete", (tx) => tx.$executeRawUnsafe(`DELETE FROM "risk_model_config" WHERE id = $1::uuid`, config.id)],
+    ];
+    for (const [label, fn] of attempts) {
+      await expect(withTenant(TENANT_A, fn, { client: app }), label).rejects.toThrow(/permission denied/i);
+    }
+    const after = await owner.riskModelConfig.findUniqueOrThrow({ where: { id: config.id } });
+    expect(after.weights).toEqual(config.weights);
+    expect(after.isActive).toBe(true);
   });
 
   it("allows one nudge per goal per week, and week_start must be a Monday", async () => {

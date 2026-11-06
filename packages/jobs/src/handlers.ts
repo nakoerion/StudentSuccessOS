@@ -3,7 +3,7 @@
  * They know nothing about pg-boss: `register.ts` adapts them to queues, and tests call
  * them directly (no live queue needed). Every handler is idempotent and safe to retry.
  */
-import { expireStaleActionCards, type PrismaClient, recomputeStudentRisk, recomputeTenantRisk, RiskModelError, type TrackProposalResult } from "@ssos/db";
+import { expireStaleActionCards, type Prisma, type PrismaClient, recomputeStudentRisk, recomputeTenantRisk, RiskModelError, type TrackProposalResult } from "@ssos/db";
 
 import {
   type DomainEvent,
@@ -16,8 +16,9 @@ import {
 } from "./events";
 
 export interface JobDeps {
-  /** OWNER client (DATABASE_ADMIN_URL): risk_score and risk_model_config are engine-owned. */
-  db: PrismaClient;
+  /** OWNER client (DATABASE_ADMIN_URL): risk_score and risk_model_config are engine-owned.
+   * Tests may pass an owner transaction instead (then everything runs inside it). */
+  db: PrismaClient | Prisma.TransactionClient;
   /** Publish a topic to its subscribers; `id` makes the publish idempotent (job id). */
   publish: (topic: DomainEvent, data: StudentEventPayload, options: { id: string }) => Promise<unknown>;
   /** Enqueue one job on a queue. */
@@ -27,7 +28,12 @@ export interface JobDeps {
    * Must exceed the longest producer transaction (default 150 s > the 120 s recompute cap). */
   relaySettleSeconds?: number;
   relayBatchSize?: number;
+  /** Clock; also the data cut-off (`asOf`) of the recomputes. Default: wall clock. */
   now?: () => Date;
+}
+
+function isClient(db: JobDeps["db"]): db is PrismaClient {
+  return typeof (db as Partial<PrismaClient>).$transaction === "function";
 }
 
 export const RELAY_CURSOR = "domain-events";
@@ -71,7 +77,8 @@ export function createHandlers(deps: JobDeps) {
     const payload = parseStudentEventPayload(raw);
     if (!payload) return { status: "skipped", reason: "invalid_payload", topic };
     try {
-      const r = await recomputeStudentRisk(db, { tenantId: payload.tenantId, studentPersonId: payload.studentPersonId });
+      const asOf = deps.now?.();
+      const r = await recomputeStudentRisk(db, { tenantId: payload.tenantId, studentPersonId: payload.studentPersonId, ...(asOf ? { asOf } : {}) });
       if (r.status === "insufficient_data") return { status: "insufficient_data", tenantId: payload.tenantId, studentPersonId: payload.studentPersonId };
       return {
         status: "scored",
@@ -94,7 +101,7 @@ export function createHandlers(deps: JobDeps) {
     const now = deps.now?.() ?? new Date();
     try {
       const expiredCards = await expireStaleActionCards(db, { tenantId: payload.tenantId, now });
-      const r = await recomputeTenantRisk(db, { tenantId: payload.tenantId });
+      const r = await recomputeTenantRisk(db, { tenantId: payload.tenantId, ...(deps.now ? { asOf: now } : {}) });
       return { status: "recomputed", tenantId: payload.tenantId, expiredCards, students: r.students, scored: r.scored, proposals: r.proposals };
     } catch (e) {
       if (e instanceof RiskModelError && e.code === "no_active_config") return { status: "skipped", tenantId: payload.tenantId, reason: e.code };
@@ -117,8 +124,7 @@ export function createHandlers(deps: JobDeps) {
    */
   async function relayDomainEvents(): Promise<RelayResult> {
     const types = Object.keys(EVENT_TYPE_TOPICS);
-    return db.$transaction(
-      async (tx) => {
+    const run = async (tx: Prisma.TransactionClient): Promise<RelayResult> => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('ssos:jobs:relay'))`;
         let [cur] = await tx.$queryRaw<{ last_created_at: Date; last_id: string }[]>`
           SELECT last_created_at, last_id::text FROM ssos_jobs.relay_cursor WHERE name = ${RELAY_CURSOR} FOR UPDATE`;
@@ -152,9 +158,8 @@ export function createHandlers(deps: JobDeps) {
         }
         const c = last ?? { created_at: cur!.last_created_at, id: cur!.last_id };
         return { scanned: rows.length, published, skipped: rows.length - published, cursor: { createdAt: c.created_at.toISOString(), id: c.id } };
-      },
-      { timeout: 120_000, maxWait: 30_000 },
-    );
+    };
+    return isClient(db) ? db.$transaction(run, { timeout: 120_000, maxWait: 30_000 }) : run(db);
   }
 
   return { onStudentEvent, recomputeTenant, nightly, relayDomainEvents };
@@ -163,7 +168,7 @@ export function createHandlers(deps: JobDeps) {
 export type SuccessHandlers = ReturnType<typeof createHandlers>;
 
 /** Move the relay cursor (ops/tests): the next run reads events after `at`. OWNER client. */
-export async function setRelayCursor(db: PrismaClient, at: Date): Promise<void> {
+export async function setRelayCursor(db: PrismaClient | Prisma.TransactionClient, at: Date): Promise<void> {
   await db.$executeRaw`
     INSERT INTO ssos_jobs.relay_cursor (name, last_created_at, last_id) VALUES (${RELAY_CURSOR}, ${at}, '00000000-0000-0000-0000-000000000000')
     ON CONFLICT (name) DO UPDATE SET last_created_at = EXCLUDED.last_created_at, last_id = EXCLUDED.last_id, updated_at = now()`;
