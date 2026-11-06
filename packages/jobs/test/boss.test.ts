@@ -59,6 +59,8 @@ describe("jobs: live pg-boss round trip", () => {
       recomputeTenant: async () => ({ status: "skipped" }),
       nightly: async () => ({ tenants: 0 }),
       relayDomainEvents: async () => ({ scanned: 0, published: 0, skipped: 0, cursor: null }),
+      escalateAlerts: async () => ({ due: 0, escalated: 0, slaExpired: 0, steps: [] }),
+      goalNudges: async () => ({ goals: 0, sent: 0, alreadyNudged: 0 }),
     };
     const reg = await registerSuccessJobs(boss, handlers);
     expect(reg.subscriptions.map((s) => s.queue)).toContain(studentQueueFor("student.graded"));
