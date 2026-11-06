@@ -50,11 +50,14 @@
  *     ("risk_model_config.activated"), then a full tenant recompute — all in one transaction.
  * Scores are derived data (like term_grade) and write no event rows. Every new score is then
  * handed to proposeTrackTransition (src/action-cards.ts), which may PROPOSE a track change
- * as an action card (with its own event) — a recompute never changes a track itself.
+ * as an action card (with its own event) — a recompute never changes a track itself — and
+ * to evaluateRiskAlerts (src/alerts.ts), which opens / resolves alerts against the tenant's
+ * risk_score alert rules (one event each).
  */
 import { Prisma, type PrismaClient, type RiskBand } from "@prisma/client";
 
 import { proposeTrackTransition, type TrackProposalResult } from "./action-cards";
+import { type AlertEvaluation, evaluateRiskAlerts } from "./alerts";
 import { RISK_FACTORS, type RiskFactor } from "./success-defaults";
 
 type Db = Prisma.TransactionClient;
@@ -664,10 +667,12 @@ export interface RecomputeStudentInput {
   asOf?: Date;
   /** Propose a track transition as an action card from the new score (default true). */
   proposeTracks?: boolean;
+  /** Evaluate the tenant's risk_score alert rules against the new score (default true). */
+  evaluateAlerts?: boolean;
 }
 
 export type RecomputeStudentResult =
-  | { status: "scored"; riskScore: RiskScoreView; proposal: TrackProposalResult | null }
+  | { status: "scored"; riskScore: RiskScoreView; proposal: TrackProposalResult | null; alerts: AlertEvaluation | null }
   | { status: "insufficient_data"; studentPersonId: string };
 
 /**
@@ -698,7 +703,8 @@ export function recomputeStudentRisk(db: PrismaClient | Db, input: RecomputeStud
     const riskScore = toView(row);
     const proposal =
       input.proposeTracks === false ? null : await proposeTrackTransition(tx, { tenantId, riskScore, thresholds: config.bandThresholds, now: computedAt });
-    return { status: "scored", riskScore, proposal };
+    const alerts = input.evaluateAlerts === false ? null : await evaluateRiskAlerts(tx, { tenantId, riskScore, now: computedAt });
+    return { status: "scored", riskScore, proposal, alerts };
   });
 }
 
@@ -709,6 +715,8 @@ export interface RecomputeTenantInput {
   asOf?: Date;
   /** Propose track transitions as action cards for every scored student (default true). */
   proposeTracks?: boolean;
+  /** Evaluate the risk_score alert rules against every new score (default true). */
+  evaluateAlerts?: boolean;
 }
 
 export interface RecomputeTenantResult {
@@ -723,6 +731,8 @@ export interface RecomputeTenantResult {
   computedAt: Date;
   /** Track-transition proposals made from the new scores, by outcome. */
   proposals: Record<TrackProposalResult["status"], number>;
+  /** Alerts opened / resolved by the new scores. */
+  alerts: { opened: number; resolved: number };
 }
 
 /** Recompute every enrolled student of the tenant with the active config. OWNER role. Throws `no_active_config`. */
@@ -736,7 +746,7 @@ export function recomputeTenantRisk(db: PrismaClient | Db, input: RecomputeTenan
     const roster = year ? await loadRoster(tx, tenantId, year.id) : new Map<string, RosterEntry>();
     const computedAt = new Date();
     if (!year || roster.size === 0)
-      return { modelConfigId: config.id, modelVersion: config.version, students: 0, scored: 0, insufficientData: 0, computedAt, proposals: emptyProposalCounts() };
+      return { modelConfigId: config.id, modelVersion: config.version, students: 0, scored: 0, insufficientData: 0, computedAt, proposals: emptyProposalCounts(), alerts: { opened: 0, resolved: 0 } };
     const signals = await loadSignals(tx, tenantId, year, [...roster.values()], asOf);
     const { scored, unscored } = scoreCohorts(roster, signals, config, asOf);
     const rows = scored.length > 0 ? await tx.riskScore.createManyAndReturn({ data: scored.map((s) => scoreData(tenantId, config, s, computedAt)), select: SCORE_SELECT }) : [];
@@ -747,7 +757,15 @@ export function recomputeTenantRisk(db: PrismaClient | Db, input: RecomputeTenan
         proposals[p.status] += 1;
       }
     }
-    return { modelConfigId: config.id, modelVersion: config.version, students: roster.size, scored: scored.length, insufficientData: unscored.length, computedAt, proposals };
+    const alerts = { opened: 0, resolved: 0 };
+    if (input.evaluateAlerts !== false) {
+      for (const row of rows) {
+        const a = await evaluateRiskAlerts(tx, { tenantId, riskScore: toView(row), now: computedAt });
+        alerts.opened += a.opened.length;
+        alerts.resolved += a.resolved.length;
+      }
+    }
+    return { modelConfigId: config.id, modelVersion: config.version, students: roster.size, scored: scored.length, insufficientData: unscored.length, computedAt, proposals, alerts };
   });
 }
 
