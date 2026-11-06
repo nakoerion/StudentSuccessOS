@@ -245,6 +245,7 @@ describe("alerts: escalation ladder teacher -> advisor -> parent on SLA minutes"
       const resolved = await resolveAlert(tx, { tenantId: TENANT_A, alertId, personId: teacher, now: new Date(NOW.getTime() + DAY) });
       return { studentErr, parentEarly, acked, twice, esc, resolved, events: await eventsFor(tx, alertId), teacher };
     });
+    expect(r.studentErr).toBeInstanceOf(AlertError);
     expect((r.studentErr as AlertError).code).toBe("not_authorized");
     expect((r.parentEarly as AlertError).code).toBe("not_authorized"); // the ladder has not reached parent
     expect(r.acked).toMatchObject({ state: "acknowledged", dueAt: null });
@@ -322,6 +323,7 @@ describe("interventions: templates, tasks, status and outcome capture", () => {
     expect(r.closed).toMatchObject({ status: "completed", outcome: "improved", outcomeNote: "Grades up" });
     expect(r.closed.riskBefore!.toString()).toBe("72");
     expect(r.closed.riskAfter!.toString()).toBe("58.5");
+    expect(r.again).toBeInstanceOf(InterventionError);
     expect((r.again as InterventionError).code).toBe("invalid_state");
     // One event per mutation.
     expect(sorted(r.events.map((e) => e.type))).toEqual(sorted(["intervention.created", "intervention.started", "intervention_task.created", "intervention_task.updated", "intervention.completed"]));
@@ -381,7 +383,7 @@ describe("goals: SMART validation and computed progress", () => {
         { actorPersonId: parent },
       ];
       const codes: string[] = [];
-      for (const t of tries) codes.push(await createGoal(tx, { ...base, ...t }).then(() => "ok", (e: unknown) => (e as GoalError).code));
+      for (const t of tries) codes.push(await createGoal(tx, { ...base, ...t }).then(() => "ok", (e: unknown) => (e instanceof GoalError ? e.code : `not a GoalError: ${String(e)}`)));
       return { codes, goals: await tx.goal.count({ where: { tenantId: TENANT_A } }) };
     });
     expect(r.codes).toEqual(["invalid_input", "invalid_metric", "invalid_target", "invalid_target", "invalid_deadline", "invalid_deadline", "invalid_metric", "invalid_metric", "not_authorized"]);
