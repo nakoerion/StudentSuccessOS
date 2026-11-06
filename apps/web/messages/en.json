@@ -130,5 +130,10 @@
     "notFoundTitle": "Page not found",
     "notFoundBody": "This page doesn't exist, or you don't have access to it.",
     "home": "Go to my school"
+  },
+  "success": {
+    "nudge": {
+      "goalWeekly": "Weekly check-in on your goal “{title}”: you are {progressPct}% of the way there. Deadline: {deadline}."
+    }
   }
 }

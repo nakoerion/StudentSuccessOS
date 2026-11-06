@@ -130,5 +130,10 @@
     "notFoundTitle": "Faqja nuk u gjet",
     "notFoundBody": "Kjo faqe nuk ekziston ose nuk keni qasje në të.",
     "home": "Shko te shkolla ime"
+  },
+  "success": {
+    "nudge": {
+      "goalWeekly": "Kontrolli javor i qëllimit tënd “{title}”: ke përshkuar {progressPct}% të rrugës. Afati: {deadline}."
+    }
   }
 }
