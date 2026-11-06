@@ -39,16 +39,22 @@
  * query filters by tenant_id explicitly. Reads (`getLatestRiskScore`) also work inside
  * `withTenant` on the app role.
  *
+ * `risk_model_config` is engine-owned too (slice 3a): the app role may only read it, so a
+ * weights change cannot skip the tenant recompute that writeRiskModelConfig performs.
+ *
  * Writes:
  *   - recomputeStudentRisk: ONE new risk_score row for one student (history is kept;
  *     latest = max(computed_at)). Reads the cohort only to compute the baseline.
  *   - recomputeTenantRisk:  one new row per scorable student of the tenant.
  *   - writeRiskModelConfig: a new active config version + exactly one event row
  *     ("risk_model_config.activated"), then a full tenant recompute — all in one transaction.
- * Recomputes are derived data (like term_grade) and write no event rows.
+ * Scores are derived data (like term_grade) and write no event rows. Every new score is then
+ * handed to proposeTrackTransition (src/action-cards.ts), which may PROPOSE a track change
+ * as an action card (with its own event) — a recompute never changes a track itself.
  */
 import { Prisma, type PrismaClient, type RiskBand } from "@prisma/client";
 
+import { proposeTrackTransition, type TrackProposalResult } from "./action-cards";
 import { RISK_FACTORS, type RiskFactor } from "./success-defaults";
 
 type Db = Prisma.TransactionClient;
@@ -656,9 +662,13 @@ export interface RecomputeStudentInput {
   studentPersonId: string;
   /** Data cut-off (default: now). */
   asOf?: Date;
+  /** Propose a track transition as an action card from the new score (default true). */
+  proposeTracks?: boolean;
 }
 
-export type RecomputeStudentResult = { status: "scored"; riskScore: RiskScoreView } | { status: "insufficient_data"; studentPersonId: string };
+export type RecomputeStudentResult =
+  | { status: "scored"; riskScore: RiskScoreView; proposal: TrackProposalResult | null }
+  | { status: "insufficient_data"; studentPersonId: string };
 
 /**
  * Recompute ONE student's risk: writes exactly one risk_score row for that student (or
@@ -683,8 +693,12 @@ export function recomputeStudentRisk(db: PrismaClient | Db, input: RecomputeStud
     const { scored } = scoreCohorts(cohort, signals, config, asOf, studentPersonId);
     const mine = scored[0];
     if (!mine) return { status: "insufficient_data", studentPersonId };
-    const row = await tx.riskScore.create({ data: scoreData(tenantId, config, mine, new Date()) as Prisma.RiskScoreUncheckedCreateInput, select: SCORE_SELECT });
-    return { status: "scored", riskScore: toView(row) };
+    const computedAt = new Date();
+    const row = await tx.riskScore.create({ data: scoreData(tenantId, config, mine, computedAt) as Prisma.RiskScoreUncheckedCreateInput, select: SCORE_SELECT });
+    const riskScore = toView(row);
+    const proposal =
+      input.proposeTracks === false ? null : await proposeTrackTransition(tx, { tenantId, riskScore, thresholds: config.bandThresholds, now: computedAt });
+    return { status: "scored", riskScore, proposal };
   });
 }
 
@@ -693,6 +707,8 @@ export function recomputeStudentRisk(db: PrismaClient | Db, input: RecomputeStud
 export interface RecomputeTenantInput {
   tenantId: string;
   asOf?: Date;
+  /** Propose track transitions as action cards for every scored student (default true). */
+  proposeTracks?: boolean;
 }
 
 export interface RecomputeTenantResult {
@@ -705,6 +721,8 @@ export interface RecomputeTenantResult {
   /** Students with no data for any weighted factor (no row written). */
   insufficientData: number;
   computedAt: Date;
+  /** Track-transition proposals made from the new scores, by outcome. */
+  proposals: Record<TrackProposalResult["status"], number>;
 }
 
 /** Recompute every enrolled student of the tenant with the active config. OWNER role. Throws `no_active_config`. */
@@ -718,12 +736,23 @@ export function recomputeTenantRisk(db: PrismaClient | Db, input: RecomputeTenan
     const roster = year ? await loadRoster(tx, tenantId, year.id) : new Map<string, RosterEntry>();
     const computedAt = new Date();
     if (!year || roster.size === 0)
-      return { modelConfigId: config.id, modelVersion: config.version, students: 0, scored: 0, insufficientData: 0, computedAt };
+      return { modelConfigId: config.id, modelVersion: config.version, students: 0, scored: 0, insufficientData: 0, computedAt, proposals: emptyProposalCounts() };
     const signals = await loadSignals(tx, tenantId, year, [...roster.values()], asOf);
     const { scored, unscored } = scoreCohorts(roster, signals, config, asOf);
-    if (scored.length > 0) await tx.riskScore.createMany({ data: scored.map((s) => scoreData(tenantId, config, s, computedAt)) });
-    return { modelConfigId: config.id, modelVersion: config.version, students: roster.size, scored: scored.length, insufficientData: unscored.length, computedAt };
+    const rows = scored.length > 0 ? await tx.riskScore.createManyAndReturn({ data: scored.map((s) => scoreData(tenantId, config, s, computedAt)), select: SCORE_SELECT }) : [];
+    const proposals = emptyProposalCounts();
+    if (input.proposeTracks !== false) {
+      for (const row of rows) {
+        const p = await proposeTrackTransition(tx, { tenantId, riskScore: toView(row), thresholds: config.bandThresholds, now: computedAt });
+        proposals[p.status] += 1;
+      }
+    }
+    return { modelConfigId: config.id, modelVersion: config.version, students: roster.size, scored: scored.length, insufficientData: unscored.length, computedAt, proposals };
   });
+}
+
+function emptyProposalCounts(): Record<TrackProposalResult["status"], number> {
+  return { proposed: 0, already_proposed: 0, no_change: 0 };
 }
 
 // ─── writeRiskModelConfig ────────────────────────────────────────────────────

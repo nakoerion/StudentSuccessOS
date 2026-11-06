@@ -73,8 +73,9 @@ export const TENANT_SCOPED_TABLES: readonly TenantScopedTable[] = [
   { model: "Edge", table: "edge", scope: "tenant" },
   { model: "MasteryState", table: "mastery_state", scope: "tenant" },
   // Success engine.
-  { model: "RiskModelConfig", table: "risk_model_config", scope: "tenant" },
-  // Engine-owned: written only by the risk model (src/risk-model.ts) as the owner.
+  // Engine-owned: written only by the risk model (src/risk-model.ts) as the owner. A config
+  // change must go through writeRiskModelConfig, which always recomputes the tenant.
+  { model: "RiskModelConfig", table: "risk_model_config", scope: "tenant", access: "derived" },
   { model: "RiskScore", table: "risk_score", scope: "tenant", access: "derived" },
   { model: "TrackAssignment", table: "track_assignment", scope: "tenant" },
   { model: "ActionCard", table: "action_card", scope: "tenant" },

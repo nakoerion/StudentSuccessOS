@@ -16,6 +16,7 @@ school", school dashboard and roster, `sq`/`en`/`ar` with RTL, `@ssos/ui` tokens
 | `apps/web` | `@ssos/web` | Next.js 15 app (App Router, next-intl, Tailwind v4), Vitest + Playwright |
 | `packages/auth` | `@ssos/auth` | Auth behind a small interface (`getSessionUser`, `signInWithPassword`, `signOutUser`, `authHandlers`, `@ssos/auth/middleware`); Supabase Auth (cookie sessions via `@supabase/ssr`) |
 | `packages/db` | `@ssos/db` | Prisma schema, migrations, RLS generator, seed, `withTenant`, tests |
+| `packages/jobs` | `@ssos/jobs` | Success-engine background jobs on pg-boss (owner connection): domain-event relay, per-student subscribers, nightly recompute (see "Success engine jobs") |
 | `packages/config` | `@ssos/config` | Shared `tsconfig` presets (strict) and ESLint flat config |
 | `packages/country-packs` | `@ssos/country-packs` | Researched, source-cited `AL` / `AE` packs, Zod-validated at import (see "Country packs") |
 | `packages/ui` | `@ssos/ui` | Design tokens (CSS variables, light/dark) + shadcn-style Button, Input, Card, Table, Badge, Tabs, Select |
@@ -529,10 +530,11 @@ Slice 1 of the success engine is schema only (`20261103000000_success_engine`, R
 `slaMinutes`), `alert` (one unresolved per rule x student), `intervention` (risk before/after,
 outcome), `intervention_task`, `goal`, `goal_progress`, `nudge` (one per goal per ISO week).
 All are tenant-scoped `read_write` through the one RLS template, except `risk_score`, which
-slice 2 made `derived` (`20261106000100_rls`). `pnpm db:seed` gives each demo
+slice 2 made `derived` (`20261106000100_rls`), and `risk_model_config`, which slice 3a made
+`derived` too (`20261106000300_rls`). `pnpm db:seed` gives each demo
 tenant the defaults from `src/success-defaults.ts` (identical for every country): risk weights v1
 and four alert rules (`risk_high`, `risk_critical`, `attendance_low`, `late_submissions`), each
-escalating teacher -> advisor -> parent. Subscribers and UI come in later slices.
+escalating teacher -> advisor -> parent. Subscribers live in `@ssos/jobs` (slice 3a); UI comes later.
 
 ### Risk model (service layer)
 
@@ -558,18 +560,83 @@ transparent weighted score 0–100 from the tenant's **active** `risk_model_conf
 
 | Function | Role | What |
 | --- | --- | --- |
-| `recomputeStudentRisk(db, { tenantId, studentPersonId, asOf? })` | owner | one new `risk_score` row for that student only (cohort read for the baseline) |
-| `recomputeTenantRisk(db, { tenantId, asOf? })` | owner | one row per scorable enrolled student; returns `{ students, scored, insufficientData }` |
+| `recomputeStudentRisk(db, { tenantId, studentPersonId, asOf?, proposeTracks? })` | owner | one new `risk_score` row for that student only (cohort read for the baseline), then a track-transition **proposal** (`proposal`) |
+| `recomputeTenantRisk(db, { tenantId, asOf?, proposeTracks? })` | owner | one row per scorable enrolled student + one proposal each; returns `{ students, scored, insufficientData, proposals }` |
 | `writeRiskModelConfig(db, { tenantId, weights, bandThresholds?, note?, actorPersonId? })` | owner | new version, made active (old kept as history), one `risk_model_config.activated` event, then a full tenant recompute — one transaction |
 | `getLatestRiskScore(db, tenantId, studentPersonId)` | owner or app (`withTenant`) | latest row |
 | `computeRiskScore`, `signalToRisk`, `bandFor`, `apportion`, `parseRiskWeights`, `parseBandThresholds` | pure | the math above |
 
-`risk_score` is **engine-owned** like `term_grade`: `access: "derived"` in `rls/tables.ts`, so
-`ssos_app` holds SELECT only and any app-role write fails with `permission denied`. History is
-kept (latest = max `computed_at`); recomputes write no event rows (derived data). Errors:
+`risk_score` and `risk_model_config` are **engine-owned** like `term_grade`: `access: "derived"`
+in `rls/tables.ts`, so `ssos_app` holds SELECT only and any app-role write fails with
+`permission denied` — a weights change can only go through `writeRiskModelConfig`, which always
+recomputes the tenant. History is kept (latest = max `computed_at`); scores write no event rows
+(derived data); the proposals they trigger write one event per card mutation. Errors:
 `RiskModelError` with `unknown_student`, `not_enrolled`, `no_active_config`, `invalid_weights`,
 `invalid_thresholds`, `unknown_actor`. Seeded tenants have no grades or attendance yet, so a
 tenant recompute on fresh seed data scores nobody; tests insert and roll back their own data.
+
+### Track transitions as action cards (service layer)
+
+`packages/db/src/action-cards.ts`, exported from `@ssos/db` (slice 3a). A recompute **never
+changes a track**: it proposes one as an `action_card` (`track_transition`, `proposed`, assignee
+`advisor`, expires after 14 days) with evidence (`[{ type: "risk_score", id }]`, the top factors
+in the payload) and a confidence. Only a human decision applies it.
+
+- **Rule** (`TRACK_RULES`, same for every tenant and country): band `high|critical` → `support`;
+  band `low` and mean grade level ≥ 85 % → `excellence`; otherwise `growth`. A student with no
+  track yet counts as `growth`, so only excellence/support are proposed for them.
+- **Confidence** (0–1) = coverage × (0.5 + 0.5 × min(1, margin / 10)): coverage = share of the
+  configured weight whose factors had data; margin = score points to the nearest band threshold
+  (for excellence also the grade points above the bar).
+- **Idempotent:** at most one open track card per student (partial unique index). Same target →
+  left alone; new target → old card `expired` + new card; target = current track → open card
+  `expired`.
+
+| Function | Role | What |
+| --- | --- | --- |
+| `proposeTrackTransition(tx, { tenantId, riskScore, thresholds })` | owner (called by the recomputes) | at most one open proposal per student; one `action_card.proposed` / `.expired` event per card mutation |
+| `decideActionCard(db, { tenantId, actionCardId, decision: "approve" \| "edit" \| "dismiss", deciderPersonId, note?, edits? })` | app (`withTenant`) or owner | approve/edit retires the active `track_assignment` (`superseded`) and writes the new one with `effectiveDate` (default today) and `reviewDate` (default +42 days, `null` = none); dismiss touches only the card; exactly one `action_card.approved\|edited\|dismissed` event |
+| `expireStaleActionCards(db, { tenantId })` | either | undecided cards past `expires_at` → `expired` (one event each) |
+| `listOpenActionCards`, `getTrackHistory` | either | reads for the ActionInbox / track history |
+| `proposeTrack(score, thresholds)` | pure | the rule + confidence above |
+
+The decider must hold the card's `assignee_role` (or `admin`) in the tenant. Errors:
+`ActionCardError` with `unknown_card`, `already_decided`, `card_expired`, `stale_card` (the
+student's track changed since the proposal), `unknown_decider`, `not_authorized`,
+`unsupported_card_type` (only track cards can be approved yet; any card can be dismissed),
+`invalid_decision`, `invalid_payload`.
+
+**The database enforces "no track change without an approved card"** independently of the
+service (`20261106000200_success_engine_jobs`): trigger `track_assignment_guard` rejects any
+`track_assignment` INSERT whose `action_card_id` is not an `approved`/`edited` `track_transition`
+card about the same student and track (one assignment per card), and any UPDATE other than
+retiring an active row (`active → superseded|ended`, review date); trigger `action_card_guard`
+makes every card start `proposed` and be decided exactly once.
+
+### Success engine jobs (`@ssos/jobs`)
+
+pg-boss creates its own schema (`pgboss`), so it **always connects as the owner** —
+`DATABASE_ADMIN_URL`; `createBoss` refuses an `ssos_app` URL (plain or Supabase-pooler form).
+Run the worker with `pnpm --filter @ssos/jobs worker`.
+
+- **Outbox relay** (`success.relay-events`, every minute): producers never touch the queue — the
+  `event` row every mutation already writes is the outbox. The relay reads new rows after a
+  cursor (`ssos_jobs.relay_cursor`, owner-only schema) and older than a 150 s settle window
+  (`created_at` is the producer's transaction start), maps `grade_entry.created → student.graded`,
+  `attendance.recorded → attendance.marked`, `submission.late → submission.late`,
+  `note.created → note.created`, and publishes each with **the event id as job id**, so a
+  re-run after a crash is deduplicated.
+- **Subscribers** (`success.on.<topic>`, one queue per topic): recompute **only that student**
+  (`recomputeStudentRisk`) and let it propose a track card. `submission.late` and
+  `note.created` have no producer until the assignments/notes slice — the subscribers are
+  registered and are no-ops until those rows appear. Unusable payloads, unknown or un-enrolled
+  students and tenants without a config are skipped, not retried.
+- **Nightly** (`success.nightly-recompute`, 01:00 UTC): one `success.recompute-tenant` job per
+  tenant with an active config → expire stale cards, full tenant recompute (+ proposals).
+
+Handlers (`createHandlers({ db, publish, send, now? })`) are plain functions over an owner
+Prisma client or transaction — tests call them directly inside a rolled-back transaction;
+`registerSuccessJobs(boss, handlers)` only wires queues, subscriptions, workers and schedules.
 
 ## Seed
 
@@ -616,7 +683,8 @@ All names are synthetic combinations; no real people.
 | `pnpm build` | turbo: builds `apps/web` |
 | `pnpm typecheck` | turbo: `tsc --noEmit` in every workspace |
 | `pnpm lint` | turbo: ESLint (shared flat config) |
-| `pnpm test` | turbo: Vitest in `packages/db`, `packages/auth`, `apps/web`, one package at a time (needs Postgres up, migrated, seeded) |
+| `pnpm test` | turbo: Vitest in `packages/db`, `packages/jobs`, `packages/auth`, `apps/web`, one package at a time (needs Postgres up, migrated, seeded) |
+| `pnpm --filter @ssos/jobs worker` | success-engine worker (pg-boss on the owner connection) |
 | `pnpm db:up` | start Postgres + ensure roles/db |
 | `pnpm db:migrate` | `prisma migrate deploy` |
 | `pnpm db:seed` | seed demo data |

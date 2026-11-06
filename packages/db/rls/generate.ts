@@ -32,7 +32,7 @@ import {
 export const CURRENT_TENANT_SQL = "NULLIF(current_setting('app.tenant_id', true), '')::uuid";
 
 /** The latest generated RLS migration (earlier ones stay as history). */
-export const DEFAULT_RLS_MIGRATION = "20261106000100_rls";
+export const DEFAULT_RLS_MIGRATION = "20261106000300_rls";
 
 /**
  * THE template. Every tenant-scoped table goes through this one function. The row
