@@ -74,7 +74,8 @@ export const TENANT_SCOPED_TABLES: readonly TenantScopedTable[] = [
   { model: "MasteryState", table: "mastery_state", scope: "tenant" },
   // Success engine.
   { model: "RiskModelConfig", table: "risk_model_config", scope: "tenant" },
-  { model: "RiskScore", table: "risk_score", scope: "tenant" },
+  // Engine-owned: written only by the risk model (src/risk-model.ts) as the owner.
+  { model: "RiskScore", table: "risk_score", scope: "tenant", access: "derived" },
   { model: "TrackAssignment", table: "track_assignment", scope: "tenant" },
   { model: "ActionCard", table: "action_card", scope: "tenant" },
   { model: "AlertRule", table: "alert_rule", scope: "tenant" },

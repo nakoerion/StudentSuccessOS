@@ -1231,6 +1231,7 @@ model RiskModelConfig {
   @@map("risk_model_config")
 }
 
+/// DERIVED — computed by the risk model (src/risk-model.ts); the app role may only read it.
 /// One computed risk score per (student, computation). History is kept; latest = max(computed_at).
 model RiskScore {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
