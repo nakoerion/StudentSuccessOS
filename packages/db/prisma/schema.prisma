@@ -1026,6 +1026,8 @@ model Event {
   @@index([tenantId])
   @@index([tenantId, subjectPersonId, occurredAt])
   @@index([tenantId, entityType, entityId])
+  /// Domain-event relay (@ssos/jobs) reads the log in (created_at, id) order.
+  @@index([createdAt, id])
   @@map("event")
 }
 
@@ -1205,7 +1207,9 @@ enum NudgeStatus {
   @@map("nudge_status")
 }
 
-/// Per-tenant, versioned risk weights. A new version is a new row; exactly one is active.
+/// ENGINE-OWNED — per-tenant, versioned risk weights. A new version is a new row; exactly one
+/// is active. The app role may only read it: changes go through writeRiskModelConfig (owner),
+/// which always recomputes the tenant.
 model RiskModelConfig {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId          String    @map("tenant_id") @db.Uuid
@@ -1262,7 +1266,8 @@ model RiskScore {
   @@map("risk_score")
 }
 
-/// A student's track. Created only when an action card is approved/edited (never automatically).
+/// A student's track. Created only when an action card is approved/edited (never automatically) —
+/// enforced by the `track_assignment_guard` trigger; rows can only be retired afterwards.
 model TrackAssignment {
   id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId        String                @map("tenant_id") @db.Uuid

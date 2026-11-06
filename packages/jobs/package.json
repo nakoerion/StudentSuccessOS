@@ -1,0 +1,29 @@
+{
+  "name": "@ssos/jobs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "worker": "dotenv -e ../../.env -- tsx src/worker.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssos/db": "workspace:*",
+    "pg-boss": "^12.38.1"
+  },
+  "devDependencies": {
+    "@ssos/config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "dotenv": "^17.0.0",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9.39.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
