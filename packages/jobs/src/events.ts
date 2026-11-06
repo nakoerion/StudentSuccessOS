@@ -34,6 +34,10 @@ export const QUEUES = {
   nightly: "success.nightly-recompute",
   /** One full recompute (+ track proposals, + expiry of stale cards) of one tenant. */
   recomputeTenant: "success.recompute-tenant",
+  /** Cron: advance alerts whose SLA elapsed one rung up the escalation ladder. */
+  escalateAlerts: "success.escalate-alerts",
+  /** Cron: the week's nudge for every active goal (idempotent: one per goal per ISO week). */
+  goalNudges: "success.goal-nudges",
 } as const;
 
 export const SCHEDULES = {
@@ -41,6 +45,10 @@ export const SCHEDULES = {
   relay: "* * * * *",
   /** 01:00 UTC — night in every country we serve (02:00 Tirana, 05:00 Abu Dhabi). */
   nightly: "0 1 * * *",
+  /** Every minute: SLA timers are in minutes; an alert never moves before its due_at. */
+  escalateAlerts: "* * * * *",
+  /** Daily 06:00 UTC; the first run of each ISO week sends that week's nudge, later runs are no-ops. */
+  goalNudges: "0 6 * * *",
   tz: "UTC",
 } as const;
 

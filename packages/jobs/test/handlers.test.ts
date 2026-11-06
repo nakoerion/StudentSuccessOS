@@ -3,7 +3,7 @@
  * Prisma client/transaction, so each case runs inside an owner transaction that is rolled
  * back — the shared database is left exactly as seeded.
  */
-import { createAdminClient, type Prisma, type PrismaClient } from "@ssos/db";
+import { createAdminClient, createGoal, type Prisma, type PrismaClient } from "@ssos/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { DOMAIN_EVENTS, type DomainEvent, EVENT_TYPE_TOPICS, QUEUES, SCHEDULES, studentQueueFor } from "../src/events";
@@ -109,7 +109,7 @@ const added = <T extends { id: string }>(before: T[], after: T[]) => after.filte
 // ─── Wiring ───────────────────────────────────────────────────────────────────
 
 describe("jobs: registration (fake boss)", () => {
-  it("one subscriber queue per domain event, the tenant queue, and the nightly + relay schedules", async () => {
+  it("one subscriber queue per domain event, the tenant queue, and the nightly, relay, escalation and nudge schedules", async () => {
     const calls = { queues: [] as string[], subs: [] as [string, string][], workers: new Map<string, (jobs: BossJob[]) => Promise<unknown>>(), schedules: [] as [string, string, string | undefined][] };
     const boss: BossLike = {
       createQueue: async (name) => void calls.queues.push(name),
@@ -126,15 +126,19 @@ describe("jobs: registration (fake boss)", () => {
       recomputeTenant: async () => ({ status: "skipped" as const }),
       nightly: async () => ({ tenants: 0 }),
       relayDomainEvents: async () => ({ scanned: 0, published: 0, skipped: 0, cursor: null }),
+      escalateAlerts: async () => ({ due: 0, escalated: 0, slaExpired: 0, steps: [] }),
+      goalNudges: async () => ({ goals: 0, sent: 0, alreadyNudged: 0 }),
     };
     const reg = await registerSuccessJobs(boss, handlers);
     expect(DOMAIN_EVENTS).toEqual(["student.graded", "attendance.marked", "submission.late", "note.created"]);
     expect(calls.subs).toEqual(DOMAIN_EVENTS.map((e) => [e, studentQueueFor(e)]));
     expect(reg.subscriptions).toHaveLength(4);
-    expect(new Set(calls.queues)).toEqual(new Set([...DOMAIN_EVENTS.map(studentQueueFor), QUEUES.recomputeTenant, QUEUES.nightly, QUEUES.relay]));
+    expect(new Set(calls.queues)).toEqual(new Set([...DOMAIN_EVENTS.map(studentQueueFor), QUEUES.recomputeTenant, QUEUES.nightly, QUEUES.relay, QUEUES.escalateAlerts, QUEUES.goalNudges]));
     expect(calls.schedules).toEqual([
       [QUEUES.nightly, SCHEDULES.nightly, "UTC"],
       [QUEUES.relay, SCHEDULES.relay, "UTC"],
+      [QUEUES.escalateAlerts, "* * * * *", "UTC"],
+      [QUEUES.goalNudges, SCHEDULES.goalNudges, "UTC"],
     ]);
     // Every queue has a worker, and a student queue routes to onStudentEvent with its topic.
     for (const q of calls.queues) expect(calls.workers.has(q), q).toBe(true);
@@ -292,5 +296,94 @@ describe("jobs: domain-event relay (event table -> topics)", () => {
       return { ev, res, published: d.rec.published };
     });
     expect(r.published.some((p) => p.id === r.ev.id)).toBe(false);
+  });
+});
+
+// ─── Alerts, goals, nudges (slice 3b) ─────────────────────────────────────────
+
+describe("jobs: alerts and goals ride on the student recompute", () => {
+  it("student.graded opens alerts and records goal progress for the affected student only", async () => {
+    const r = await rolledBack(async (tx) => {
+      const students = await cohortWithData(tx);
+      const advisor = (await tx.roleAssignment.findFirstOrThrow({ where: { tenantId: tenantA, status: "active", role: { key: "advisor" } } })).personId;
+      const goal = (s: string) => createGoal(tx, { tenantId: tenantA, studentPersonId: s, actorPersonId: advisor, title: "Lower risk", metric: "risk_score", target: 20, baseline: 90, deadline: "2027-03-01", now: AS_OF });
+      const g0 = await goal(students[0]!);
+      const g1 = await goal(students[1]!);
+      const res = await createHandlers(deps(tx)).onStudentEvent("student.graded", { tenantId: tenantA, studentPersonId: students[0] });
+      const alerts = await tx.alert.findMany({ where: { tenantId: tenantA }, include: { rule: { select: { key: true } } } });
+      const progress = await tx.goalProgress.findMany({ where: { tenantId: tenantA } });
+      return { students, res, alerts, progress, g0, g1 };
+    });
+    expect(r.res).toMatchObject({ status: "scored", score: 75, goals: { goals: 1, recorded: 1 } });
+    // 75 crosses risk_high (>= 55) and risk_critical (>= 75): two alerts, both on the teacher rung.
+    expect(r.alerts.map((a) => [a.rule.key, a.studentPersonId, a.state, a.assigneeRole]).sort()).toEqual([
+      ["risk_critical", r.students[0], "open", "teacher"],
+      ["risk_high", r.students[0], "open", "teacher"],
+    ]);
+    expect(r.progress.map((p) => [p.goalId, p.value.toNumber(), p.source])).toEqual([[r.g0.id, 75, "student.graded"]]);
+  });
+
+  it("the nightly tenant recompute also evaluates alerts and every active goal", async () => {
+    const r = await rolledBack(async (tx) => {
+      await cohortWithData(tx);
+      return createHandlers(deps(tx)).recomputeTenant({ tenantId: tenantA });
+    });
+    expect(r).toMatchObject({ status: "recomputed", scored: 3, alerts: { opened: 2, resolved: 0 }, goals: { goals: 0 } });
+  });
+});
+
+describe("jobs: escalation ladder (scheduled, every minute)", () => {
+  it("escalateAlerts advances an alert only after its SLA elapsed: teacher -> advisor -> parent", async () => {
+    const r = await rolledBack(async (tx) => {
+      const students = await cohortWithData(tx);
+      await createHandlers(deps(tx)).onStudentEvent("student.graded", { tenantId: tenantA, studentPersonId: students[0] });
+      const crit = await tx.alert.findFirstOrThrow({ where: { tenantId: tenantA, rule: { key: "risk_critical" } } });
+      const due0 = crit.dueAt!.getTime();
+      const at = (ms: number) => createHandlers(deps(tx, { now: () => new Date(ms) })).escalateAlerts();
+      const mine = async (ms: number) => (await at(ms)).steps.filter((s) => s.alertId === crit.id).map((s) => `${s.action}:${s.fromRole}->${s.toRole}`);
+      const MIN = 60_000;
+      const out = {
+        early: await mine(due0 - MIN), // 239 minutes after opening: nothing
+        onTime: await mine(due0), // SLA (240 min) elapsed: teacher -> advisor
+        sameMinute: await mine(due0 + 30_000),
+        advisorEarly: await mine(due0 + 1440 * MIN - MIN),
+        advisorDue: await mine(due0 + 1440 * MIN), // advisor SLA 1440 min elapsed -> parent
+        parentDue: await mine(due0 + (1440 + 2880) * MIN),
+        later: await mine(due0 + 90 * 24 * 60 * MIN),
+      };
+      const events = await tx.event.findMany({ where: { tenantId: tenantA, entityId: crit.id }, select: { type: true } });
+      return { crit, out, events: events.map((e) => e.type).sort(), final: await tx.alert.findUniqueOrThrow({ where: { id: crit.id } }) };
+    });
+    expect(r.crit).toMatchObject({ state: "open", escalationLevel: 0, assigneeRole: "teacher" });
+    expect(r.out).toEqual({
+      early: [],
+      onTime: ["escalated:teacher->advisor"],
+      sameMinute: [],
+      advisorEarly: [],
+      advisorDue: ["escalated:advisor->parent"],
+      parentDue: ["sla_expired:parent->parent"],
+      later: [],
+    });
+    expect(r.final).toMatchObject({ state: "escalated", escalationLevel: 2, assigneeRole: "parent", dueAt: null });
+    expect(r.events).toEqual(["alert.escalated", "alert.escalated", "alert.opened", "alert.sla_expired"]);
+  });
+});
+
+describe("jobs: weekly goal nudges (scheduled daily, one per goal per ISO week)", () => {
+  it("goalNudges run every day of a week sends each active goal exactly one nudge", async () => {
+    const r = await rolledBack(async (tx) => {
+      const students = await cohortWithData(tx);
+      const advisor = (await tx.roleAssignment.findFirstOrThrow({ where: { tenantId: tenantA, status: "active", role: { key: "advisor" } } })).personId;
+      for (const s of students.slice(0, 3)) await createGoal(tx, { tenantId: tenantA, studentPersonId: s, actorPersonId: advisor, title: "Attend", metric: "attendance_rate", target: 95, baseline: 70, deadline: "2027-03-01", now: AS_OF });
+      const daily: number[] = [];
+      for (let d = 0; d < 7; d++) daily.push((await createHandlers(deps(tx, { now: () => new Date(Date.UTC(2026, 11, 7 + d, 6)) })).goalNudges()).sent);
+      const nextMonday = (await createHandlers(deps(tx, { now: () => new Date(Date.UTC(2026, 11, 14, 6)) })).goalNudges()).sent;
+      const perGoalWeek = await tx.nudge.groupBy({ by: ["goalId", "weekStart"], where: { tenantId: tenantA }, _count: { _all: true } });
+      return { daily, nextMonday, perGoalWeek };
+    });
+    expect(r.daily).toEqual([3, 0, 0, 0, 0, 0, 0]);
+    expect(r.nextMonday).toBe(3);
+    expect(r.perGoalWeek).toHaveLength(6);
+    expect(r.perGoalWeek.every((g) => g._count._all === 1)).toBe(true);
   });
 });

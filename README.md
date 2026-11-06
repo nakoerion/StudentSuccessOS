@@ -627,16 +627,57 @@ Run the worker with `pnpm --filter @ssos/jobs worker`.
   `note.created → note.created`, and publishes each with **the event id as job id**, so a
   re-run after a crash is deduplicated.
 - **Subscribers** (`success.on.<topic>`, one queue per topic): recompute **only that student**
-  (`recomputeStudentRisk`) and let it propose a track card. `submission.late` and
+  (`recomputeStudentRisk`, which proposes a track card and evaluates the alert rules) and
+  that student's active goals (`recomputeGoalProgress`). `submission.late` and
   `note.created` have no producer until the assignments/notes slice — the subscribers are
   registered and are no-ops until those rows appear. Unusable payloads, unknown or un-enrolled
   students and tenants without a config are skipped, not retried.
 - **Nightly** (`success.nightly-recompute`, 01:00 UTC): one `success.recompute-tenant` job per
-  tenant with an active config → expire stale cards, full tenant recompute (+ proposals).
+  tenant with an active config → expire stale cards, full tenant recompute (+ proposals,
+  + alert evaluation), then every active goal of the tenant.
+- **Escalation** (`success.escalate-alerts`, every minute): `escalateDueAlerts` moves every
+  alert whose SLA has elapsed (`due_at <= now`) one rung up its rule's ladder.
+- **Goal nudges** (`success.goal-nudges`, daily 06:00 UTC): `sendWeeklyGoalNudges` — the first
+  run of each ISO week sends that week's nudge per active goal; later runs are no-ops.
 
 Handlers (`createHandlers({ db, publish, send, now? })`) are plain functions over an owner
 Prisma client or transaction — tests call them directly inside a rolled-back transaction;
 `registerSuccessJobs(boss, handlers)` only wires queues, subscriptions, workers and schedules.
+
+### Alerts, interventions and goals (service layer)
+
+`packages/db/src/alerts.ts`, `interventions.ts`, `goals.ts`, exported from `@ssos/db` (slice 3b).
+Every mutation writes exactly one `event` row in its transaction; everything works on the owner
+client or the app role inside `withTenant`. Rules, templates and metrics are data — nothing
+branches on country.
+
+- **Alerts.** Every new risk score (student, tenant or weights-change recompute) is checked
+  against the tenant's active `risk_score` rules (`alert_rule.threshold` `{ op, value }`). A
+  crossed threshold opens one alert per rule × student (`alert.opened`, rung 0 of the ladder,
+  `due_at = now + slaMinutes`); re-crossing leaves it alone; a score back on the safe side
+  resolves it (`alert.resolved`, reason `threshold_cleared`). Malformed rules are skipped and
+  reported, never guessed. `acknowledgeAlert` stops the SLA timer (`alert.acknowledged`) — allowed
+  for the staff roles reached on the ladder, advisors and admins, and a guardian of the student
+  once the ladder reached `parent`. `escalateDueAlerts` (the job) advances one rung per elapsed
+  SLA (`alert.escalated`, teacher → advisor → parent); an elapsed last rung is recorded once
+  (`alert.sla_expired`). `resolveAlert` / `dismissAlert` for staff. The `attendance_rate` and
+  `late_submissions` rules are not evaluated yet (they need their own metric windows).
+- **Interventions.** `INTERVENTION_TEMPLATES` (academic_tutoring, attendance_plan, mentoring,
+  family_meeting: type, severity, tasks with due offsets, titles in sq/en/ar picked by the
+  tenant's default locale) or ad-hoc tasks. `createIntervention` stores **`risk_before`** = the
+  student's latest risk score; `startIntervention` (planned → active); `addInterventionTask`,
+  `setInterventionTaskStatus`; `closeIntervention` (completed | cancelled) stores **`risk_after`**
+  = the latest score at close and the outcome (given, or derived: ≥ 5 points down improved, ≥ 5
+  up worsened, else no_change; inconclusive without both scores).
+- **Goals.** `createGoal` enforces SMART: title 3–200 chars; metric in `GOAL_METRICS`
+  (`attendance_rate`, `course_average` — optionally per course —, `late_submissions`,
+  `risk_score`); target in range and better than the baseline (measured from data when not
+  given); deadline in the future and within 366 days. `recomputeGoalProgress` measures the metric
+  and writes a `goal_progress` sample only when the value moved (`goal.progress_recorded`),
+  marking the goal `achieved` when met and `missed` past its deadline.
+- **Nudges.** `sendWeeklyGoalNudges`: one in-app nudge per active goal per ISO week of the
+  tenant's local date (`INSERT … ON CONFLICT DO NOTHING` on the `(tenant, goal, week_start)`
+  unique key; `nudge.sent`).
 
 ## Seed
 

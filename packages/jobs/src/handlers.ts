@@ -3,7 +3,22 @@
  * They know nothing about pg-boss: `register.ts` adapts them to queues, and tests call
  * them directly (no live queue needed). Every handler is idempotent and safe to retry.
  */
-import { expireStaleActionCards, type Prisma, type PrismaClient, recomputeStudentRisk, recomputeTenantRisk, RiskModelError, type TrackProposalResult } from "@ssos/db";
+import {
+  type AlertEvaluation,
+  type EscalateDueAlertsResult,
+  escalateDueAlerts,
+  expireStaleActionCards,
+  type GoalProgressResult,
+  type Prisma,
+  type PrismaClient,
+  recomputeGoalProgress,
+  recomputeStudentRisk,
+  recomputeTenantRisk,
+  RiskModelError,
+  sendWeeklyGoalNudges,
+  type TrackProposalResult,
+  type WeeklyNudgeResult,
+} from "@ssos/db";
 
 import {
   type DomainEvent,
@@ -39,8 +54,8 @@ function isClient(db: JobDeps["db"]): db is PrismaClient {
 export const RELAY_CURSOR = "domain-events";
 
 export type StudentJobResult =
-  | { status: "scored"; tenantId: string; studentPersonId: string; riskScoreId: string; score: number; proposal: TrackProposalResult | null }
-  | { status: "insufficient_data"; tenantId: string; studentPersonId: string }
+  | { status: "scored"; tenantId: string; studentPersonId: string; riskScoreId: string; score: number; proposal: TrackProposalResult | null; alerts: AlertEvaluation | null; goals: GoalProgressResult }
+  | { status: "insufficient_data"; tenantId: string; studentPersonId: string; goals: GoalProgressResult }
   | { status: "skipped"; reason: string; topic: DomainEvent };
 
 export interface TenantJobResult {
@@ -51,6 +66,8 @@ export interface TenantJobResult {
   students?: number;
   scored?: number;
   proposals?: Record<string, number>;
+  alerts?: { opened: number; resolved: number };
+  goals?: GoalProgressResult;
 }
 
 export interface RelayResult {
@@ -71,7 +88,8 @@ export function createHandlers(deps: JobDeps) {
 
   /**
    * Any student topic: recompute ONLY that student's risk (one risk_score row) and let the
-   * recompute propose a track transition as an action card. Never changes a track.
+   * recompute propose a track transition as an action card and evaluate the alert rules
+   * against the new score. Then recompute ONLY that student's goal progress. Never changes a track.
    */
   async function onStudentEvent(topic: DomainEvent, raw: unknown): Promise<StudentJobResult> {
     const payload = parseStudentEventPayload(raw);
@@ -79,7 +97,8 @@ export function createHandlers(deps: JobDeps) {
     try {
       const asOf = deps.now?.();
       const r = await recomputeStudentRisk(db, { tenantId: payload.tenantId, studentPersonId: payload.studentPersonId, ...(asOf ? { asOf } : {}) });
-      if (r.status === "insufficient_data") return { status: "insufficient_data", tenantId: payload.tenantId, studentPersonId: payload.studentPersonId };
+      const goals = await recomputeGoalProgress(db, { tenantId: payload.tenantId, studentPersonId: payload.studentPersonId, source: topic, ...(asOf ? { now: asOf } : {}) });
+      if (r.status === "insufficient_data") return { status: "insufficient_data", tenantId: payload.tenantId, studentPersonId: payload.studentPersonId, goals };
       return {
         status: "scored",
         tenantId: payload.tenantId,
@@ -87,6 +106,8 @@ export function createHandlers(deps: JobDeps) {
         riskScoreId: r.riskScore.id,
         score: r.riskScore.score,
         proposal: r.proposal,
+        alerts: r.alerts,
+        goals,
       };
     } catch (e) {
       if (e instanceof RiskModelError && SKIPPABLE.has(e.code)) return { status: "skipped", reason: e.code, topic };
@@ -94,7 +115,7 @@ export function createHandlers(deps: JobDeps) {
     }
   }
 
-  /** One tenant: expire undecided cards past their date, then a full recompute (+ proposals). */
+  /** One tenant: expire undecided cards past their date, a full recompute (+ proposals, alerts), then every active goal. */
   async function recomputeTenant(raw: unknown): Promise<TenantJobResult> {
     const payload: TenantJobPayload | null = parseTenantJobPayload(raw);
     if (!payload) return { status: "skipped", reason: "invalid_payload" };
@@ -102,7 +123,8 @@ export function createHandlers(deps: JobDeps) {
     try {
       const expiredCards = await expireStaleActionCards(db, { tenantId: payload.tenantId, now });
       const r = await recomputeTenantRisk(db, { tenantId: payload.tenantId, ...(deps.now ? { asOf: now } : {}) });
-      return { status: "recomputed", tenantId: payload.tenantId, expiredCards, students: r.students, scored: r.scored, proposals: r.proposals };
+      const goals = await recomputeGoalProgress(db, { tenantId: payload.tenantId, source: "nightly", now });
+      return { status: "recomputed", tenantId: payload.tenantId, expiredCards, students: r.students, scored: r.scored, proposals: r.proposals, alerts: r.alerts, goals };
     } catch (e) {
       if (e instanceof RiskModelError && e.code === "no_active_config") return { status: "skipped", tenantId: payload.tenantId, reason: e.code };
       throw e;
@@ -162,7 +184,17 @@ export function createHandlers(deps: JobDeps) {
     return isClient(db) ? db.$transaction(run, { timeout: 120_000, maxWait: 30_000 }) : run(db);
   }
 
-  return { onStudentEvent, recomputeTenant, nightly, relayDomainEvents };
+  /** Escalation ladder: every alert whose SLA elapsed moves one rung (teacher → advisor → parent). */
+  function escalateAlerts(): Promise<EscalateDueAlertsResult> {
+    return escalateDueAlerts(db, { now: deps.now?.() ?? new Date() });
+  }
+
+  /** The current ISO week's nudge for every active goal (no-op for goals already nudged). */
+  function goalNudges(): Promise<WeeklyNudgeResult> {
+    return sendWeeklyGoalNudges(db, { now: deps.now?.() ?? new Date() });
+  }
+
+  return { onStudentEvent, recomputeTenant, nightly, relayDomainEvents, escalateAlerts, goalNudges };
 }
 
 export type SuccessHandlers = ReturnType<typeof createHandlers>;

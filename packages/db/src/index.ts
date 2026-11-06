@@ -12,3 +12,6 @@ export * from "./gradebook";
 export * from "./success-defaults";
 export * from "./risk-model";
 export * from "./action-cards";
+export * from "./alerts";
+export * from "./interventions";
+export * from "./goals";

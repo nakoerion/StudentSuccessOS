@@ -61,5 +61,17 @@ export async function registerSuccessJobs(boss: BossLike, handlers: SuccessHandl
   reg.queues.push(QUEUES.relay);
   reg.schedules.push({ queue: QUEUES.relay, cron: SCHEDULES.relay });
 
+  await boss.createQueue(QUEUES.escalateAlerts, { retryLimit: 0 });
+  await boss.work(QUEUES.escalateAlerts, each(() => handlers.escalateAlerts()));
+  await boss.schedule(QUEUES.escalateAlerts, SCHEDULES.escalateAlerts, null, { tz: SCHEDULES.tz });
+  reg.queues.push(QUEUES.escalateAlerts);
+  reg.schedules.push({ queue: QUEUES.escalateAlerts, cron: SCHEDULES.escalateAlerts });
+
+  await boss.createQueue(QUEUES.goalNudges, RETRY);
+  await boss.work(QUEUES.goalNudges, each(() => handlers.goalNudges()));
+  await boss.schedule(QUEUES.goalNudges, SCHEDULES.goalNudges, null, { tz: SCHEDULES.tz });
+  reg.queues.push(QUEUES.goalNudges);
+  reg.schedules.push({ queue: QUEUES.goalNudges, cron: SCHEDULES.goalNudges });
+
   return reg;
 }
