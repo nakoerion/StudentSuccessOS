@@ -528,10 +528,48 @@ Slice 1 of the success engine is schema only (`20261103000000_success_engine`, R
 (`proposed|approved|edited|dismissed|expired`), `alert_rule` (threshold + escalation ladder with
 `slaMinutes`), `alert` (one unresolved per rule x student), `intervention` (risk before/after,
 outcome), `intervention_task`, `goal`, `goal_progress`, `nudge` (one per goal per ISO week).
-All are tenant-scoped `read_write` through the one RLS template. `pnpm db:seed` gives each demo
+All are tenant-scoped `read_write` through the one RLS template, except `risk_score`, which
+slice 2 made `derived` (`20261106000100_rls`). `pnpm db:seed` gives each demo
 tenant the defaults from `src/success-defaults.ts` (identical for every country): risk weights v1
 and four alert rules (`risk_high`, `risk_critical`, `attendance_low`, `late_submissions`), each
-escalating teacher -> advisor -> parent. Services, subscribers and UI come in later slices.
+escalating teacher -> advisor -> parent. Subscribers and UI come in later slices.
+
+### Risk model (service layer)
+
+`packages/db/src/risk-model.ts`, exported from `@ssos/db` (slice 2 of the success engine). A
+transparent weighted score 0–100 from the tenant's **active** `risk_model_config`:
+
+1. **Signals** from the current academic year, up to `asOf`: `gradeLevel` (mean grade-entry %,
+   each course equal), `gradeTrend` (recent half of entries − earlier half, needs ≥ 4),
+   `attendanceLevel` (present + late over all marks, the `attendance_rate` formula),
+   `attendanceTrend` (last 30 days − the 30 before), `lateMissing` (share of published, past-due
+   assignments handed in late or not at all), `engagement` (no source yet), `concernNotes`
+   (`internal` notes in the last 30 days; no data until the tenant has written any note).
+2. **Risk per factor** 0–100 by the linear maps in `RISK_SIGNAL_RULES` (same for every tenant).
+3. **Renormalisation:** only factors with data count; their weights are divided by the sum of
+   the available weights. Missing factors are reported `available: false` with contribution 0 —
+   never scored as zero risk. A student with no data at all is not scored (`insufficient_data`).
+4. **Score** = Σ effectiveWeight × risk, half-up to 2 dp; contributions are rounded with
+   largest-remainder apportionment so they **sum exactly** to the stored score.
+5. **Cohort baseline:** mean risk per factor (and mean score) over the student's grade cohort
+   (most common `course.grade` of their active enrollments). `vsBaseline` = effectiveWeight ×
+   (risk − baseline); the **top 4** factors are the available ones with the largest `vsBaseline`.
+6. **Band** from `bandThresholds` (`score >= critical | high | moderate`, else `low`).
+
+| Function | Role | What |
+| --- | --- | --- |
+| `recomputeStudentRisk(db, { tenantId, studentPersonId, asOf? })` | owner | one new `risk_score` row for that student only (cohort read for the baseline) |
+| `recomputeTenantRisk(db, { tenantId, asOf? })` | owner | one row per scorable enrolled student; returns `{ students, scored, insufficientData }` |
+| `writeRiskModelConfig(db, { tenantId, weights, bandThresholds?, note?, actorPersonId? })` | owner | new version, made active (old kept as history), one `risk_model_config.activated` event, then a full tenant recompute — one transaction |
+| `getLatestRiskScore(db, tenantId, studentPersonId)` | owner or app (`withTenant`) | latest row |
+| `computeRiskScore`, `signalToRisk`, `bandFor`, `apportion`, `parseRiskWeights`, `parseBandThresholds` | pure | the math above |
+
+`risk_score` is **engine-owned** like `term_grade`: `access: "derived"` in `rls/tables.ts`, so
+`ssos_app` holds SELECT only and any app-role write fails with `permission denied`. History is
+kept (latest = max `computed_at`); recomputes write no event rows (derived data). Errors:
+`RiskModelError` with `unknown_student`, `not_enrolled`, `no_active_config`, `invalid_weights`,
+`invalid_thresholds`, `unknown_actor`. Seeded tenants have no grades or attendance yet, so a
+tenant recompute on fresh seed data scores nobody; tests insert and roll back their own data.
 
 ## Seed
 
