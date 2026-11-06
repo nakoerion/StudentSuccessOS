@@ -34,12 +34,16 @@ const PROBE_CONFIG_VERSION = 999;
 
 const monday = new Date("2026-11-02T00:00:00Z");
 
-async function buildChain(db: PrismaClient | TenantTx, tenantId: string) {
+/**
+ * `scoreDb` writes the risk_score row: risk_score is engine-owned (the app role holds
+ * SELECT only), so an app-role chain gets its score from the owner.
+ */
+async function buildChain(db: PrismaClient | TenantTx, tenantId: string, scoreDb: PrismaClient | TenantTx = db) {
   const student = await db.person.findFirstOrThrow({ where: { tenantId, externalRef: "S-001" } });
-  const config = await db.riskModelConfig.create({
+  const config = await scoreDb.riskModelConfig.create({
     data: { tenantId, version: PROBE_CONFIG_VERSION, weights: { gradeLevel: 1 }, bandThresholds: { moderate: 30, high: 55, critical: 75 } },
   });
-  const score = await db.riskScore.create({
+  const score = await scoreDb.riskScore.create({
     data: {
       tenantId,
       studentPersonId: student.id,
@@ -196,7 +200,8 @@ describe("success engine: tenant isolation", () => {
       TENANT_A,
       async (tx) => {
         let n = 0;
-        for (const t of SUCCESS_TABLES) {
+        // risk_score is engine-owned: the app role has no UPDATE/DELETE at all (risk-model.test.ts).
+        for (const t of SUCCESS_TABLES.filter((x) => x !== "risk_score")) {
           n += await tx.$executeRawUnsafe(`UPDATE "${t}" SET updated_at = now() WHERE id = $1::uuid`, probe[t]);
           n += await tx.$executeRawUnsafe(`DELETE FROM "${t}" WHERE id = $1::uuid`, probe[t]);
         }
@@ -251,18 +256,23 @@ describe("success engine: tenant isolation", () => {
   });
 
   it("positive control: the full chain can be built by the app role inside tenant A (rolled back)", async () => {
-    await expect(
-      withTenant(
-        TENANT_A,
-        async (tx) => {
-          const ids = await buildChain(tx, TENANT_A);
-          expect(Object.keys(ids).sort()).toEqual([...SUCCESS_TABLES].sort());
-          throw new Rollback();
-        },
-        { client: app },
-      ),
-    ).rejects.toBeInstanceOf(Rollback);
-    expect(await owner.alertRule.count({ where: { tenantId: TENANT_A, key: PROBE_RULE_KEY } })).toBe(0);
+    try {
+      await expect(
+        withTenant(
+          TENANT_A,
+          async (tx) => {
+            // The engine-owned config + score come from the owner (committed, removed below).
+            const ids = await buildChain(tx, TENANT_A, owner);
+            expect(Object.keys(ids).sort()).toEqual([...SUCCESS_TABLES].sort());
+            throw new Rollback();
+          },
+          { client: app },
+        ),
+      ).rejects.toBeInstanceOf(Rollback);
+      expect(await owner.alertRule.count({ where: { tenantId: TENANT_A, key: PROBE_RULE_KEY } })).toBe(0);
+    } finally {
+      await dropChain(TENANT_A);
+    }
   });
 });
 
@@ -270,15 +280,11 @@ describe("success engine: integrity rules", () => {
   it("rejects a risk score outside 0–100", async () => {
     const student = await owner.person.findFirstOrThrow({ where: { tenantId: TENANT_A, externalRef: "S-001" } });
     const config = await owner.riskModelConfig.findFirstOrThrow({ where: { tenantId: TENANT_A, isActive: true } });
+    // Owner: risk_score is engine-owned (the app role cannot insert at all).
     await expect(
-      withTenant(
-        TENANT_A,
-        (tx) =>
-          tx.riskScore.create({
-            data: { tenantId: TENANT_A, studentPersonId: student.id, modelConfigId: config.id, modelVersion: 1, score: "100.50", band: "critical" },
-          }),
-        { client: app },
-      ),
+      owner.riskScore.create({
+        data: { tenantId: TENANT_A, studentPersonId: student.id, modelConfigId: config.id, modelVersion: 1, score: "100.50", band: "critical" },
+      }),
     ).rejects.toThrow(/risk_score_score_check/);
   });
 

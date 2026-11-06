@@ -512,7 +512,10 @@ async function loadSignals(
     }
     // Notes: a count of 0 only means "no concerns" once the tenant writes notes at all;
     // before that the factor has no data (it is renormalised away, never scored as 0).
-    const concernNotes = notesInUse ? (noteCount.get(id) ?? 0) : null;
+    // A student with no other signal and no note stays unscored rather than scoring 0.
+    const notesN = noteCount.get(id) ?? 0;
+    const hasOther = gradeLevel !== null || attendanceLevel !== null || lateMissing !== null;
+    const concernNotes = notesInUse && (hasOther || notesN > 0) ? notesN : null;
 
     out.set(id, { gradeLevel, gradeTrend, attendanceLevel, attendanceTrend, lateMissing, engagement: null, concernNotes });
   }
