@@ -17,6 +17,7 @@ const DEMO_ACCOUNTS = [
   "admin.tirane@demo.ssos.test",
   "teacher.tirane@demo.ssos.test",
   "parent.tirane@demo.ssos.test",
+  "advisor.tirane@demo.ssos.test",
   "admin.abudhabi@demo.ssos.test",
   "parent.abudhabi@demo.ssos.test",
   "join@demo.ssos.test",

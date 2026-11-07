@@ -13,6 +13,7 @@ import { PERMISSIONS, ROLE_PERMISSIONS, SYSTEM_ROLES, type SystemRoleKey } from 
 import { runSetupWizard } from "../src/setup-wizard";
 import { createSuccessDefaults } from "../src/success-defaults";
 import { seedConcepts } from "./academic";
+import { type SeedStudent, seedSuccessDemo } from "./success";
 import { pick, prng, seedId, seedToken } from "./deterministic";
 import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture, tenantDefaultLocale } from "./fixtures";
 import type { NamePool } from "./names";
@@ -208,6 +209,7 @@ async function seedTenant(
   }
 
   // Students: take the family name of their parent, 10 per class.
+  const seedStudents: SeedStudent[] = [];
   let s = 0;
   for (const fam of families) {
     for (let k = 0; k < fam.kids; k++, s++) {
@@ -221,6 +223,7 @@ async function seedTenant(
         unit.gradeLevel + 6,
       );
       assign(student, "student", unit.id);
+      seedStudents.push({ id: student.id, grade: unit.gradeLevel, index: s });
       guardianships.push({
         id: seedId(f.slug, "guardianship", fam.parent.externalRef, student.externalRef),
         tenantId,
@@ -255,7 +258,7 @@ async function seedTenant(
       return p;
     });
   const teachers = staff("T", COUNTS.teachers, "teacher", true);
-  staff("ADV", COUNTS.advisors, "advisor", false);
+  const [advisor] = staff("ADV", COUNTS.advisors, "advisor", false);
   const [admin] = staff("ADM", COUNTS.admins, "admin", false);
 
   await tx.person.createMany({ data: persons });
@@ -268,6 +271,7 @@ async function seedTenant(
     ["admin", admin!],
     ["teacher", teachers[0]!],
     ["parent", families[0]!.parent],
+    ["advisor", advisor!],
   ];
   for (const [kind, person] of demo) {
     const email = `${kind}.${f.emailTag}@${DEMO_EMAIL_DOMAIN}`;
@@ -308,6 +312,8 @@ async function seedTenant(
 
   // Success engine defaults: risk weights v1 (active) + alert rules with SLA ladders.
   await createSuccessDefaults(tx, tenantId, (table, key) => seedId(f.slug, table, key));
+  // Synthetic demo risk scores -> real track proposals (action cards) and alerts.
+  const success = await seedSuccessDemo(tx, tenantId, seedStudents, new Date());
 
   await tx.auditLog.create({
     data: {
@@ -327,6 +333,7 @@ async function seedTenant(
     assignments: assignments.length,
     guardianships: guardianships.length,
     academic,
+    success,
   };
 }
 
@@ -340,7 +347,8 @@ export async function seed(client: PrismaClient): Promise<void> {
         const r = await seedTenant(tx, f, roleIds);
         console.info(
           `Seeded ${f.name} (${r.tenantId}): ${r.persons} persons, ${r.assignments} role assignments, ${r.guardianships} guardianships, ` +
-            `academic year ${r.academic.academicYearName}: ${JSON.stringify(r.academic.totals)}` +
+            `academic year ${r.academic.academicYearName}: ${JSON.stringify(r.academic.totals)}, ` +
+            `demo success data: ${r.success.scores} risk scores, ${r.success.cards} action cards, ${r.success.alerts} alerts` +
             (r.academic.placeholders.length ? ` (placeholder data: ${r.academic.placeholders.join(", ")})` : ""),
         );
       }
