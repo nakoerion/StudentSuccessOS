@@ -17,7 +17,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { rosterScope } from "../../../../lib/access";
+import { canViewSuccess, rosterScope } from "../../../../lib/access";
 import { listRoster, parseRosterFilter, type RosterFilter } from "../../../../lib/roster";
 import { requireTenant } from "../../../../lib/session";
 
@@ -43,6 +43,7 @@ export default async function PeoplePage({ params, searchParams }: { params: Par
 
   const scope = rosterScope(viewer);
   const isParentView = scope.kind === "own_children";
+  const showProfiles = canViewSuccess(viewer);
   const filter = isParentView ? "student" : parseRosterFilter(sp.role);
   const q = (sp.q ?? "").slice(0, 100);
   // Server-side: the scope goes into the SQL WHERE; nothing is filtered in the browser.
@@ -133,7 +134,15 @@ export default async function PeoplePage({ params, searchParams }: { params: Par
             ) : (
               rows.map((p) => (
                 <TableRow key={p.id} data-testid="person-row">
-                  <TableCell className="font-medium">{p.displayName}</TableCell>
+                  <TableCell className="font-medium">
+                    {showProfiles && p.roles.includes("student") ? (
+                      <Link href={`/t/${tenantSlug}/students/${p.id}`} className="hover:underline" data-testid="student-profile-link">
+                        {p.displayName}
+                      </Link>
+                    ) : (
+                      p.displayName
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {p.roles.map((r) => (

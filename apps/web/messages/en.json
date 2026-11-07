@@ -76,7 +76,8 @@
   "nav": {
     "dashboard": "Overview",
     "people": "People",
-    "switchSchool": "Switch school"
+    "switchSchool": "Switch school",
+    "inbox": "Action inbox"
   },
   "dashboard": {
     "welcome": "Welcome, {name}",
@@ -134,6 +135,185 @@
   "success": {
     "nudge": {
       "goalWeekly": "Weekly check-in on your goal “{title}”: you are {progressPct}% of the way there. Deadline: {deadline}."
+    },
+    "none": "—",
+    "tracks": {
+      "excellence": "Excellence",
+      "growth": "Growth",
+      "support": "Support"
+    },
+    "bands": {
+      "low": "Low",
+      "moderate": "Moderate",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "confidence": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "cardTypes": {
+      "track_transition": "Track change",
+      "intervention": "Intervention",
+      "goal": "Goal",
+      "alert_followup": "Alert follow-up"
+    },
+    "factors": {
+      "gradeLevel": "Grade level",
+      "gradeTrend": "Grade trend",
+      "attendanceLevel": "Attendance",
+      "attendanceTrend": "Attendance trend",
+      "lateMissing": "Late or missing work",
+      "engagement": "Engagement",
+      "concernNotes": "Concern notes"
+    },
+    "factorValue": {
+      "gradeLevel": "Average {value, number}%",
+      "gradeTrend": "{value, number, ::sign-always} points",
+      "attendanceLevel": "Present {value, number}%",
+      "attendanceTrend": "{value, number, ::sign-always} points",
+      "lateMissing": "{value, number, percent} of work",
+      "engagement": "Engagement {value, number}",
+      "concernNotes": "{value, plural, one {# note} other {# notes}} in 30 days"
+    },
+    "trackStatus": {
+      "active": "Active",
+      "superseded": "Superseded",
+      "ended": "Ended"
+    },
+    "alertStates": {
+      "open": "Open",
+      "acknowledged": "Acknowledged",
+      "escalated": "Escalated",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed"
+    },
+    "severity": {
+      "info": "Info",
+      "warning": "Warning",
+      "critical": "Critical"
+    },
+    "alertRules": {
+      "risk_high": "Risk score high",
+      "risk_critical": "Risk score critical",
+      "attendance_low": "Attendance below 90% (last 30 days)",
+      "late_submissions": "3+ late or missing submissions (last 14 days)"
+    },
+    "errors": {
+      "unknown_card": "This card no longer exists.",
+      "already_decided": "Someone has already decided this card.",
+      "card_expired": "This card has expired. A fresh proposal will follow the next recompute.",
+      "stale_card": "The student's track changed after this card was proposed. Dismiss it and wait for a fresh proposal.",
+      "unknown_decider": "Your account isn't linked to a person at this school.",
+      "not_authorized": "Your role can't decide this card.",
+      "unsupported_card_type": "This kind of card can only be dismissed for now.",
+      "invalid_decision": "That decision isn't possible. To change the track, use Edit and change at least one field.",
+      "invalid_payload": "Check the dates: the review date must be on or after the effective date, and the track must differ from the current one.",
+      "invalid_form": "The form was incomplete. Reload the page and try again.",
+      "unexpected": "Something went wrong. Please try again."
+    },
+    "inbox": {
+      "title": "Action inbox",
+      "subtitle": "Proposals from the success engine. Nothing changes until a person approves, edits or dismisses them.",
+      "count": "{count, plural, =0 {No open cards} one {# open card} other {# open cards}}",
+      "empty": "No open cards. You're all caught up.",
+      "noTrack": "No track yet",
+      "to": "to",
+      "confidence": "Confidence",
+      "coverage": "Data coverage {pct}",
+      "topFactors": "Top factors (score points · against the grade cohort)",
+      "factorPoints": "{points} pts",
+      "noEvidence": "No risk evidence is attached to this card.",
+      "meta": "Assigned to {role} · proposed {created}",
+      "expires": "expires {at}",
+      "note": "Note (optional)",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "approve": "Approve",
+      "dismiss": "Dismiss",
+      "dismissReason": "Reason (optional)",
+      "dismissConfirm": "Dismiss card",
+      "readOnly": "Only a {role} or an admin can decide this card.",
+      "decidedDismissed": "Dismissed the card for {student}.",
+      "decidedTrack": "{outcome, select, edited {Approved with edits} other {Approved}}: {student} moves to the {track} track.",
+      "edit": {
+        "open": "Edit",
+        "track": "Track",
+        "effectiveDate": "Effective date",
+        "reviewDate": "Review date",
+        "submit": "Approve with edits"
+      }
+    },
+    "risk": {
+      "title": "Risk explanation",
+      "subtitle": "How the score is built: every factor's contribution, compared with the student's grade cohort.",
+      "score": "Risk score",
+      "cohortMean": "Grade {grade} average {score}",
+      "vsCohort": "{points} vs cohort",
+      "bandLabel": "{band} risk",
+      "cohort": "Cohort",
+      "cohortValue": "Grade {grade} · {size} students ({scored} scored)",
+      "cohortScore": "Cohort average",
+      "model": "Model",
+      "modelValue": "Version {version} · {at}",
+      "columns": {
+        "factor": "Factor",
+        "signal": "Signal",
+        "risk": "Risk (0–100)",
+        "weight": "Weight",
+        "contribution": "Contribution",
+        "baseline": "Cohort risk",
+        "vsBaseline": "Against cohort"
+      },
+      "topBadge": "Top {rank}",
+      "noData": "No data yet",
+      "total": "Total = risk score",
+      "totalHint": "Contributions add up exactly to the score.",
+      "explainer": "Each factor's risk (0–100) is multiplied by its weight; factors without data are left out and the remaining weights are rescaled. “Against cohort” shows the points above (+) or below (−) a typical student in the same grade.",
+      "empty": "No risk score yet. It appears after the first recompute with grades or attendance."
+    },
+    "profile": {
+      "title": "Student",
+      "back": "Back to students",
+      "trackBadge": "{track} track",
+      "noTrack": "No track yet",
+      "openCards": "Open action cards",
+      "noOpenCards": "No open action cards for this student."
+    },
+    "trackHistory": {
+      "title": "Track history",
+      "subtitle": "Every track assignment, newest first. A track only changes when a person approves a card.",
+      "columns": {
+        "track": "Track",
+        "status": "Status",
+        "effective": "Effective",
+        "review": "Review",
+        "confidence": "Confidence",
+        "decision": "Decision"
+      },
+      "empty": "No track assignments yet — the student is on the default Growth track.",
+      "decidedBy": "{status, select, edited {Approved with edits} other {Approved}} by {by} · {at}"
+    },
+    "alerts": {
+      "title": "Alerts",
+      "subtitle": "Escalation runs teacher → advisor → parent; each rung has an SLA to acknowledge.",
+      "columns": {
+        "rule": "Alert",
+        "state": "State",
+        "rung": "Current rung",
+        "due": "SLA due",
+        "acknowledged": "Acknowledgement"
+      },
+      "empty": "No alerts for this student.",
+      "triggered": "triggered {at}",
+      "rung": "Rung {rung} of {of} · {role}",
+      "noTimer": "Timer stopped",
+      "dueIn": "in {duration}",
+      "overdue": "overdue by {duration}",
+      "notAcknowledged": "Not acknowledged",
+      "ackBy": "{by} ({role}) · {at}",
+      "duration": "{days, plural, =0 {} other {#d }}{hours}h {minutes}m"
     }
   }
 }

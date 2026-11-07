@@ -76,7 +76,8 @@
   "nav": {
     "dashboard": "Përmbledhje",
     "people": "Njerëzit",
-    "switchSchool": "Ndrysho shkollën"
+    "switchSchool": "Ndrysho shkollën",
+    "inbox": "Kutia e veprimeve"
   },
   "dashboard": {
     "welcome": "Mirë se vini, {name}",
@@ -134,6 +135,185 @@
   "success": {
     "nudge": {
       "goalWeekly": "Kontrolli javor i qëllimit tënd “{title}”: ke përshkuar {progressPct}% të rrugës. Afati: {deadline}."
+    },
+    "none": "—",
+    "tracks": {
+      "excellence": "Ekselencë",
+      "growth": "Rritje",
+      "support": "Mbështetje"
+    },
+    "bands": {
+      "low": "I ulët",
+      "moderate": "I moderuar",
+      "high": "I lartë",
+      "critical": "Kritik"
+    },
+    "confidence": {
+      "high": "E lartë",
+      "medium": "Mesatare",
+      "low": "E ulët"
+    },
+    "cardTypes": {
+      "track_transition": "Ndryshim drejtimi",
+      "intervention": "Ndërhyrje",
+      "goal": "Objektiv",
+      "alert_followup": "Ndjekje sinjalizimi"
+    },
+    "factors": {
+      "gradeLevel": "Niveli i notave",
+      "gradeTrend": "Ecuria e notave",
+      "attendanceLevel": "Frekuentimi",
+      "attendanceTrend": "Ecuria e frekuentimit",
+      "lateMissing": "Detyra me vonesë ose të padorëzuara",
+      "engagement": "Angazhimi",
+      "concernNotes": "Shënime shqetësimi"
+    },
+    "factorValue": {
+      "gradeLevel": "Mesatarja {value, number}%",
+      "gradeTrend": "{value, number, ::sign-always} pikë",
+      "attendanceLevel": "I pranishëm {value, number}%",
+      "attendanceTrend": "{value, number, ::sign-always} pikë",
+      "lateMissing": "{value, number, percent} e detyrave",
+      "engagement": "Angazhimi {value, number}",
+      "concernNotes": "{value, plural, one {# shënim} other {# shënime}} në 30 ditë"
+    },
+    "trackStatus": {
+      "active": "Aktiv",
+      "superseded": "Zëvendësuar",
+      "ended": "Përfunduar"
+    },
+    "alertStates": {
+      "open": "Hapur",
+      "acknowledged": "Marrë në dijeni",
+      "escalated": "Përshkallëzuar",
+      "resolved": "Zgjidhur",
+      "dismissed": "Hedhur poshtë"
+    },
+    "severity": {
+      "info": "Info",
+      "warning": "Paralajmërim",
+      "critical": "Kritik"
+    },
+    "alertRules": {
+      "risk_high": "Rrezik i lartë",
+      "risk_critical": "Rrezik kritik",
+      "attendance_low": "Frekuentim nën 90% (30 ditët e fundit)",
+      "late_submissions": "3+ detyra me vonesë ose të padorëzuara (14 ditët e fundit)"
+    },
+    "errors": {
+      "unknown_card": "Kjo kartë nuk ekziston më.",
+      "already_decided": "Dikush e ka vendosur tashmë këtë kartë.",
+      "card_expired": "Kjo kartë ka skaduar. Një propozim i ri do të vijë pas rillogaritjes së radhës.",
+      "stale_card": "Drejtimi i nxënësit ndryshoi pasi u propozua kjo kartë. Hidheni poshtë dhe prisni një propozim të ri.",
+      "unknown_decider": "Llogaria juaj nuk është e lidhur me një person në këtë shkollë.",
+      "not_authorized": "Roli juaj nuk mund ta vendosë këtë kartë.",
+      "unsupported_card_type": "Ky lloj karte për momentin mund vetëm të hidhet poshtë.",
+      "invalid_decision": "Ky vendim nuk është i mundur. Për të ndryshuar drejtimin, përdorni Ndrysho dhe ndryshoni të paktën një fushë.",
+      "invalid_payload": "Kontrolloni datat: data e rishikimit duhet të jetë në ose pas datës së fillimit, dhe drejtimi duhet të ndryshojë nga ai aktual.",
+      "invalid_form": "Formulari ishte i paplotë. Ringarkoni faqen dhe provoni përsëri.",
+      "unexpected": "Diçka shkoi keq. Ju lutemi provoni përsëri."
+    },
+    "inbox": {
+      "title": "Kutia e veprimeve",
+      "subtitle": "Propozime nga motori i suksesit. Asgjë nuk ndryshon derisa një person t'i miratojë, ndryshojë ose hedhë poshtë.",
+      "count": "{count, plural, =0 {Asnjë kartë e hapur} one {# kartë e hapur} other {# karta të hapura}}",
+      "empty": "Asnjë kartë e hapur. Jeni në rregull me gjithçka.",
+      "noTrack": "Pa drejtim ende",
+      "to": "në",
+      "confidence": "Besueshmëria",
+      "coverage": "Mbulimi i të dhënave {pct}",
+      "topFactors": "Faktorët kryesorë (pikë në rezultat · krahasuar me klasën e nivelit)",
+      "factorPoints": "{points} pikë",
+      "noEvidence": "Kësaj karte nuk i bashkëngjitet asnjë provë rreziku.",
+      "meta": "Caktuar për: {role} · propozuar {created}",
+      "expires": "skadon {at}",
+      "note": "Shënim (opsional)",
+      "saving": "Duke ruajtur…",
+      "cancel": "Anulo",
+      "approve": "Mirato",
+      "dismiss": "Hidh poshtë",
+      "dismissReason": "Arsyeja (opsionale)",
+      "dismissConfirm": "Hidh poshtë kartën",
+      "readOnly": "Vetëm roli {role} ose një administrator mund ta vendosë këtë kartë.",
+      "decidedDismissed": "Karta për {student} u hodh poshtë.",
+      "decidedTrack": "{outcome, select, edited {Miratuar me ndryshime} other {Miratuar}}: {student} kalon në drejtimin {track}.",
+      "edit": {
+        "open": "Ndrysho",
+        "track": "Drejtimi",
+        "effectiveDate": "Data e fillimit",
+        "reviewDate": "Data e rishikimit",
+        "submit": "Mirato me ndryshime"
+      }
+    },
+    "risk": {
+      "title": "Shpjegimi i rrezikut",
+      "subtitle": "Si ndërtohet rezultati: kontributi i çdo faktori, krahasuar me nxënësit e të njëjtit nivel.",
+      "score": "Rezultati i rrezikut",
+      "cohortMean": "Mesatarja e nivelit {grade}: {score}",
+      "vsCohort": "{points} ndaj nivelit",
+      "bandLabel": "Rrezik {band}",
+      "cohort": "Grupi krahasues",
+      "cohortValue": "Niveli {grade} · {size} nxënës ({scored} me rezultat)",
+      "cohortScore": "Mesatarja e grupit",
+      "model": "Modeli",
+      "modelValue": "Versioni {version} · {at}",
+      "columns": {
+        "factor": "Faktori",
+        "signal": "Sinjali",
+        "risk": "Rreziku (0–100)",
+        "weight": "Pesha",
+        "contribution": "Kontributi",
+        "baseline": "Rreziku i grupit",
+        "vsBaseline": "Ndaj grupit"
+      },
+      "topBadge": "Kryesor {rank}",
+      "noData": "Pa të dhëna ende",
+      "total": "Totali = rezultati i rrezikut",
+      "totalHint": "Kontributet mblidhen saktësisht në rezultat.",
+      "explainer": "Rreziku i çdo faktori (0–100) shumëzohet me peshën e tij; faktorët pa të dhëna lihen jashtë dhe peshat e mbetura rishkallëzohen. “Ndaj grupit” tregon pikët mbi (+) ose nën (−) një nxënës tipik të të njëjtit nivel.",
+      "empty": "Ende pa rezultat rreziku. Shfaqet pas rillogaritjes së parë me nota ose frekuentim."
+    },
+    "profile": {
+      "title": "Nxënësi",
+      "back": "Kthehu te nxënësit",
+      "trackBadge": "Drejtimi: {track}",
+      "noTrack": "Pa drejtim ende",
+      "openCards": "Karta veprimi të hapura",
+      "noOpenCards": "Asnjë kartë veprimi e hapur për këtë nxënës."
+    },
+    "trackHistory": {
+      "title": "Historiku i drejtimeve",
+      "subtitle": "Çdo caktim drejtimi, më i riu i pari. Drejtimi ndryshon vetëm kur një person miraton një kartë.",
+      "columns": {
+        "track": "Drejtimi",
+        "status": "Statusi",
+        "effective": "Fillon",
+        "review": "Rishikim",
+        "confidence": "Besueshmëria",
+        "decision": "Vendimi"
+      },
+      "empty": "Ende pa caktime drejtimi — nxënësi është në drejtimin e paracaktuar Rritje.",
+      "decidedBy": "{status, select, edited {Miratuar me ndryshime} other {Miratuar}} nga {by} · {at}"
+    },
+    "alerts": {
+      "title": "Sinjalizimet",
+      "subtitle": "Përshkallëzimi shkon mësues → këshillues → prind; çdo shkallë ka një afat për t'u marrë në dijeni.",
+      "columns": {
+        "rule": "Sinjalizimi",
+        "state": "Gjendja",
+        "rung": "Shkalla aktuale",
+        "due": "Afati",
+        "acknowledged": "Marrja në dijeni"
+      },
+      "empty": "Asnjë sinjalizim për këtë nxënës.",
+      "triggered": "nisur {at}",
+      "rung": "Shkalla {rung} nga {of} · {role}",
+      "noTimer": "Kohëmatësi i ndalur",
+      "dueIn": "për {duration}",
+      "overdue": "me vonesë {duration}",
+      "notAcknowledged": "Pa u marrë në dijeni",
+      "ackBy": "{by} ({role}) · {at}",
+      "duration": "{days, plural, =0 {} other {#d }}{hours}o {minutes}m"
     }
   }
 }

@@ -9,6 +9,7 @@ import { LocaleSwitcher, ThemeToggle } from "../../../components/preferences";
 import { currentTheme } from "../../../components/shell";
 import { SignOutButton } from "../../../components/sign-out-button";
 import { TenantNav } from "../../../components/tenant-nav";
+import { canViewSuccess } from "../../../lib/access";
 import { getMemberships, requireTenant } from "../../../lib/session";
 
 export default async function TenantLayout({
@@ -22,6 +23,7 @@ export default async function TenantLayout({
   const { user, membership, viewer } = await requireTenant(tenantSlug);
   const t = await getTranslations();
   const theme = await currentTheme();
+  const showInbox = canViewSuccess(viewer);
   const schoolCount = (await getMemberships(user.id)).filter((m) => m.activeRoles.length > 0).length;
 
   return (
@@ -38,7 +40,7 @@ export default async function TenantLayout({
             </span>
           </Link>
           <div className="hidden md:block">
-            <TenantNav slug={tenantSlug} />
+            <TenantNav slug={tenantSlug} showInbox={showInbox} />
           </div>
           <div className="ms-auto flex items-center gap-2">
             <div className="hidden items-center gap-1 sm:flex" data-testid="user-roles">
@@ -62,7 +64,7 @@ export default async function TenantLayout({
           </div>
         </div>
         <div className="border-t border-border px-4 py-1.5 md:hidden">
-          <TenantNav slug={tenantSlug} />
+          <TenantNav slug={tenantSlug} showInbox={showInbox} />
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
