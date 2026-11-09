@@ -86,6 +86,15 @@ export const TENANT_SCOPED_TABLES: readonly TenantScopedTable[] = [
   { model: "Goal", table: "goal", scope: "tenant" },
   { model: "GoalProgress", table: "goal_progress", scope: "tenant" },
   { model: "Nudge", table: "nudge", scope: "tenant" },
+  // Communications.
+  { model: "Thread", table: "thread", scope: "tenant" },
+  { model: "Message", table: "message", scope: "tenant" },
+  { model: "ChannelBinding", table: "channel_binding", scope: "tenant" },
+  { model: "Outbox", table: "outbox", scope: "tenant" },
+  { model: "Announcement", table: "announcement", scope: "tenant" },
+  { model: "Notification", table: "notification", scope: "tenant" },
+  { model: "NotificationPreference", table: "notification_preference", scope: "tenant" },
+  { model: "DigestRun", table: "digest_run", scope: "tenant" },
 ];
 
 /**

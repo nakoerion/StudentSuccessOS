@@ -25,6 +25,7 @@
     "@ssos/country-packs": "workspace:*"
   },
   "devDependencies": {
+    "@ssos/comms": "workspace:*",
     "@ssos/config": "workspace:*",
     "@supabase/supabase-js": "^2.118.0",
     "@types/node": "^22.0.0",

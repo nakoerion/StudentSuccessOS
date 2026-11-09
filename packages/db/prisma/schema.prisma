@@ -107,6 +107,16 @@ model Tenant {
   goalProgress      GoalProgress[]
   nudges            Nudge[]
 
+  // Communications
+  threads                 Thread[]
+  messages                Message[]
+  channelBindings         ChannelBinding[]
+  outbox                  Outbox[]
+  announcements           Announcement[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
+  digestRuns              DigestRun[]
+
   @@index([countryPackId])
   @@map("tenant")
 }
@@ -308,6 +318,17 @@ model Person {
   goals                   Goal[]             @relation("GoalStudent")
   goalsCreated            Goal[]             @relation("GoalCreator")
   nudgesReceived          Nudge[]            @relation("NudgeRecipient")
+
+  // Communications
+  threadsAbout            Thread[]                 @relation("ThreadStudent")
+  threadsCreated          Thread[]                 @relation("ThreadCreator")
+  messagesAuthored        Message[]                @relation("MessageAuthor")
+  channelBindings         ChannelBinding[]         @relation("ChannelBindingPerson")
+  outboxReceived          Outbox[]                 @relation("OutboxRecipient")
+  announcementsAuthored   Announcement[]           @relation("AnnouncementAuthor")
+  notificationsReceived   Notification[]           @relation("NotificationRecipient")
+  notificationsAbout      Notification[]           @relation("NotificationSubject")
+  notificationPreferences NotificationPreference[] @relation("NotificationPreferencePerson")
 
   @@unique([tenantId, id])
   @@unique([tenantId, userAccountId])
@@ -675,6 +696,8 @@ model ClassSection {
   teacherAssignments TeacherAssignment[]
   timetableSlots     TimetableSlot[]
   assignments        Assignment[]
+  threads            Thread[]
+  announcements      Announcement[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, courseId, code])
@@ -1387,6 +1410,7 @@ model Alert {
   rule          AlertRule      @relation(fields: [tenantId, ruleId], references: [tenantId, id], onDelete: Cascade)
   student       Person         @relation("AlertStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
   interventions Intervention[]
+  notifications Notification[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -1537,4 +1561,337 @@ model Nudge {
   @@index([tenantId])
   @@index([tenantId, status, scheduledFor])
   @@map("nudge")
+}
+
+// ─── Communications (slice 1: data model) ───────────────────────────────────
+
+/// External delivery channels. In-app delivery is a `notification` row, not a channel.
+enum CommChannel {
+  whatsapp
+  telegram
+  email
+  sms
+  push
+
+  @@map("comm_channel")
+}
+
+/// Opt-in state of one external address. STOP (any channel) -> opted_out.
+enum ChannelOptInState {
+  pending
+  opted_in
+  opted_out
+
+  @@map("channel_opt_in_state")
+}
+
+/// Outbox lifecycle (enforced by the `outbox_state_guard` trigger):
+/// queued -> sending | cancelled; sending -> sent | failed | dead; sent -> delivered | failed;
+/// failed -> sending (retry) | dead | cancelled. delivered, dead and cancelled are final.
+enum OutboxState {
+  queued
+  sending
+  sent
+  delivered
+  failed
+  dead
+  cancelled
+
+  @@map("outbox_state")
+}
+
+enum ThreadScope {
+  student
+  class_section
+
+  @@map("thread_scope")
+}
+
+enum MessageDirection {
+  outbound
+  inbound
+
+  @@map("message_direction")
+}
+
+enum AnnouncementAudience {
+  school
+  role
+  class_section
+
+  @@map("announcement_audience")
+}
+
+enum NotificationCategory {
+  alert
+  digest
+  message
+  announcement
+  nudge
+  system
+
+  @@map("notification_category")
+}
+
+enum DigestRunState {
+  pending
+  running
+  completed
+  failed
+
+  @@map("digest_run_state")
+}
+
+/// A conversation about one student (teacher <-> family) or one class section.
+model Thread {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String      @map("tenant_id") @db.Uuid
+  scope             ThreadScope
+  /// Set iff scope = student.
+  studentPersonId   String?     @map("student_person_id") @db.Uuid
+  /// Set iff scope = class_section.
+  classSectionId    String?     @map("class_section_id") @db.Uuid
+  subject           String?
+  createdByPersonId String?     @map("created_by_person_id") @db.Uuid
+  lastMessageAt     DateTime?   @map("last_message_at") @db.Timestamptz(6)
+  archivedAt        DateTime?   @map("archived_at") @db.Timestamptz(6)
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student       Person?        @relation("ThreadStudent", fields: [tenantId, studentPersonId], references: [tenantId, id], onDelete: Cascade)
+  classSection  ClassSection?  @relation(fields: [tenantId, classSectionId], references: [tenantId, id], onDelete: Cascade)
+  createdBy     Person?        @relation("ThreadCreator", fields: [tenantId, createdByPersonId], references: [tenantId, id], onDelete: NoAction)
+  messages      Message[]
+  notifications Notification[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, studentPersonId])
+  @@index([tenantId, classSectionId])
+  @@index([tenantId, lastMessageAt(sort: Desc)])
+  @@map("thread")
+}
+
+model Message {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String           @map("tenant_id") @db.Uuid
+  threadId          String           @map("thread_id") @db.Uuid
+  direction         MessageDirection @default(outbound)
+  /// Null for an inbound reply whose sender could not be matched to a person.
+  authorPersonId    String?          @map("author_person_id") @db.Uuid
+  body              String
+  /// Channel an inbound message arrived on (null = written in the app).
+  channel           CommChannel?
+  channelBindingId  String?          @map("channel_binding_id") @db.Uuid
+  /// Provider message id of an inbound message (webhook idempotency).
+  externalMessageId String?          @map("external_message_id")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread         Thread          @relation(fields: [tenantId, threadId], references: [tenantId, id], onDelete: Cascade)
+  author         Person?         @relation("MessageAuthor", fields: [tenantId, authorPersonId], references: [tenantId, id], onDelete: NoAction)
+  channelBinding ChannelBinding? @relation(fields: [tenantId, channelBindingId], references: [tenantId, id], onDelete: NoAction)
+  outbox         Outbox[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, channel, externalMessageId])
+  @@index([tenantId])
+  @@index([tenantId, threadId, createdAt])
+  @@map("message")
+}
+
+/// One external address of a person on one channel, with its opt-in state.
+model ChannelBinding {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String            @map("tenant_id") @db.Uuid
+  personId   String            @map("person_id") @db.Uuid
+  channel    CommChannel
+  /// Phone (E.164), Telegram chat id, e-mail address or push endpoint.
+  externalId String            @map("external_id")
+  optInState ChannelOptInState @default(pending) @map("opt_in_state")
+  /// Preferred language for templates on this channel (falls back to person/tenant locale).
+  locale     String?           @db.VarChar(8)
+  /// Provider-specific extras (e.g. Web Push keys). Never secrets of ours.
+  meta       Json              @default("{}")
+  verifiedAt DateTime?         @map("verified_at") @db.Timestamptz(6)
+  optedInAt  DateTime?         @map("opted_in_at") @db.Timestamptz(6)
+  optedOutAt DateTime?         @map("opted_out_at") @db.Timestamptz(6)
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  person   Person    @relation("ChannelBindingPerson", fields: [tenantId, personId], references: [tenantId, id], onDelete: Cascade)
+  messages Message[]
+  outbox   Outbox[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, channel, externalId])
+  @@index([tenantId])
+  @@index([tenantId, personId, channel])
+  @@map("channel_binding")
+}
+
+/// Transactional outbox: one row per (recipient, channel) delivery attempt chain.
+model Outbox {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String      @map("tenant_id") @db.Uuid
+  channel           CommChannel
+  recipientPersonId String?     @map("recipient_person_id") @db.Uuid
+  channelBindingId  String?     @map("channel_binding_id") @db.Uuid
+  /// Template key, e.g. "digest.weekly", "alert.critical".
+  template          String
+  locale            String      @db.VarChar(8)
+  /// Template variables.
+  payload           Json        @default("{}")
+  state             OutboxState @default(queued)
+  attempts          Int         @default(0)
+  maxAttempts       Int         @default(5) @map("max_attempts")
+  /// Earliest time the next attempt may run (retry backoff, quiet hours).
+  nextAttemptAt     DateTime    @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  lastError         String?     @map("last_error")
+  providerMessageId String?     @map("provider_message_id")
+  /// Caller-chosen key so enqueueing twice is a no-op.
+  idempotencyKey    String?     @map("idempotency_key")
+  notificationId    String?     @map("notification_id") @db.Uuid
+  messageId         String?     @map("message_id") @db.Uuid
+  digestRunId       String?     @map("digest_run_id") @db.Uuid
+  sentAt            DateTime?   @map("sent_at") @db.Timestamptz(6)
+  deliveredAt       DateTime?   @map("delivered_at") @db.Timestamptz(6)
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipient      Person?         @relation("OutboxRecipient", fields: [tenantId, recipientPersonId], references: [tenantId, id], onDelete: Cascade)
+  channelBinding ChannelBinding? @relation(fields: [tenantId, channelBindingId], references: [tenantId, id], onDelete: NoAction)
+  notification   Notification?   @relation(fields: [tenantId, notificationId], references: [tenantId, id], onDelete: NoAction)
+  message        Message?        @relation(fields: [tenantId, messageId], references: [tenantId, id], onDelete: NoAction)
+  digestRun      DigestRun?      @relation(fields: [tenantId, digestRunId], references: [tenantId, id], onDelete: NoAction)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId])
+  @@index([state, nextAttemptAt])
+  @@index([tenantId, recipientPersonId, createdAt(sort: Desc)])
+  @@index([tenantId, providerMessageId])
+  @@map("outbox")
+}
+
+/// School-, role- or class-wide announcement. Read receipts are the per-recipient
+/// `notification` rows (category = announcement) and their `read_at`.
+model Announcement {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String               @map("tenant_id") @db.Uuid
+  authorPersonId String?              @map("author_person_id") @db.Uuid
+  audience       AnnouncementAudience @default(school)
+  /// System role key; set iff audience = role.
+  audienceRole   String?              @map("audience_role")
+  /// Set iff audience = class_section.
+  classSectionId String?              @map("class_section_id") @db.Uuid
+  title          String
+  body           String
+  locale         String               @db.VarChar(8)
+  publishedAt    DateTime?            @map("published_at") @db.Timestamptz(6)
+  expiresAt      DateTime?            @map("expires_at") @db.Timestamptz(6)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  author        Person?        @relation("AnnouncementAuthor", fields: [tenantId, authorPersonId], references: [tenantId, id], onDelete: NoAction)
+  classSection  ClassSection?  @relation(fields: [tenantId, classSectionId], references: [tenantId, id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, publishedAt(sort: Desc)])
+  @@map("announcement")
+}
+
+/// In-app notification for one person (also the read receipt of an announcement).
+model Notification {
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String               @map("tenant_id") @db.Uuid
+  recipientPersonId String               @map("recipient_person_id") @db.Uuid
+  category          NotificationCategory
+  /// Message key + params, rendered in the recipient's locale.
+  payload           Json                 @default("{}")
+  /// The student the notification is about (parents with several children).
+  subjectPersonId   String?              @map("subject_person_id") @db.Uuid
+  alertId           String?              @map("alert_id") @db.Uuid
+  announcementId    String?              @map("announcement_id") @db.Uuid
+  threadId          String?              @map("thread_id") @db.Uuid
+  readAt            DateTime?            @map("read_at") @db.Timestamptz(6)
+  acknowledgedAt    DateTime?            @map("acknowledged_at") @db.Timestamptz(6)
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipient    Person        @relation("NotificationRecipient", fields: [tenantId, recipientPersonId], references: [tenantId, id], onDelete: Cascade)
+  subject      Person?       @relation("NotificationSubject", fields: [tenantId, subjectPersonId], references: [tenantId, id], onDelete: Cascade)
+  alert        Alert?        @relation(fields: [tenantId, alertId], references: [tenantId, id], onDelete: Cascade)
+  announcement Announcement? @relation(fields: [tenantId, announcementId], references: [tenantId, id], onDelete: Cascade)
+  thread       Thread?       @relation(fields: [tenantId, threadId], references: [tenantId, id], onDelete: Cascade)
+  outbox       Outbox[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, announcementId, recipientPersonId])
+  @@index([tenantId])
+  @@index([tenantId, recipientPersonId, createdAt(sort: Desc)])
+  @@index([tenantId, alertId])
+  @@map("notification")
+}
+
+/// Delivery preference for one category. Either a role default (role_key set) or a
+/// person's override (person_id set) — never both. Quiet hours are minutes of the day in
+/// the tenant's time zone; start > end wraps midnight; start = end means none.
+model NotificationPreference {
+  id                    String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String               @map("tenant_id") @db.Uuid
+  roleKey               String?              @map("role_key")
+  personId              String?              @map("person_id") @db.Uuid
+  category              NotificationCategory
+  /// Ordered by preference; the first opted-in binding wins, later ones are fallbacks.
+  channels              CommChannel[]
+  enabled               Boolean              @default(true)
+  quietStartMinute      Int?                 @map("quiet_start_minute")
+  quietEndMinute        Int?                 @map("quiet_end_minute")
+  /// Critical alerts are delivered immediately even inside quiet hours.
+  criticalBypassesQuiet Boolean              @default(true) @map("critical_bypasses_quiet")
+  createdAt             DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  person Person? @relation("NotificationPreferencePerson", fields: [tenantId, personId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, personId])
+  @@map("notification_preference")
+}
+
+/// One weekly (or other) digest batch for a tenant and period.
+model DigestRun {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String         @map("tenant_id") @db.Uuid
+  /// e.g. "weekly".
+  kind        String         @default("weekly")
+  periodStart DateTime       @map("period_start") @db.Date
+  periodEnd   DateTime       @map("period_end") @db.Date
+  state       DigestRunState @default(pending)
+  /// { recipients, students, enqueued, skipped }.
+  stats       Json           @default("{}")
+  error       String?
+  startedAt   DateTime?      @map("started_at") @db.Timestamptz(6)
+  finishedAt  DateTime?      @map("finished_at") @db.Timestamptz(6)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  outbox Outbox[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, kind, periodStart])
+  @@index([tenantId])
+  @@map("digest_run")
 }

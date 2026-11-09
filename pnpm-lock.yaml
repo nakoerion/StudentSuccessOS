@@ -122,6 +122,24 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
 
+  packages/comms:
+    devDependencies:
+      '@ssos/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      eslint:
+        specifier: ^9.39.0
+        version: 9.39.5(jiti@2.7.0)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
+
   packages/config:
     dependencies:
       '@eslint/js':
@@ -168,6 +186,9 @@ importers:
         specifier: workspace:*
         version: link:../country-packs
     devDependencies:
+      '@ssos/comms':
+        specifier: workspace:*
+        version: link:../comms
       '@ssos/config':
         specifier: workspace:*
         version: link:../config
