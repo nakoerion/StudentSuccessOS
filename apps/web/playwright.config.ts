@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Smoke test against a running production build:
- *   pnpm --filter @ssos/web build && pnpm db:seed
+ *   pnpm --filter @ssos/web build && SSOS_SEED_SUCCESS_DEMO=1 pnpm db:seed
  *   PLAYWRIGHT_BROWSERS_PATH=/opt/browsers pnpm --filter @ssos/web test:e2e
  * The webServer block starts `next start` on port 3100 if nothing is there yet.
  */

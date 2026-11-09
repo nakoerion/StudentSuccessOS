@@ -3,7 +3,8 @@
  * loaders + decision path against the seeded database as the RLS-enforced app role.
  */
 import { createAdminClient, decideActionCard, prisma, type TenantTx, userMemberships, withTenant } from "@ssos/db";
-import { afterAll, describe, expect, it } from "vitest";
+import { loadSeedStudents, seedSuccessDemo } from "@ssos/db/seed/success";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import ar from "../messages/ar.json";
 import en from "../messages/en.json";
@@ -37,7 +38,30 @@ const TIRANA = "liceu-demo-tirane";
 const ABU_DHABI = "demo-school-abu-dhabi";
 const CARD = "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
 
+// A plain `pnpm db:seed` leaves the success tables empty (demo data is opt-in via
+// SSOS_SEED_SUCCESS_DEMO=1). If Tirana has no scores, add the demo data here with the same
+// seed code, and remove exactly what this file added afterwards so the database is left
+// as seeded. If the tenant was seeded with the demo data, it is used as-is and kept.
+const startedAt = new Date();
+let addedDemo: string | null = null;
+beforeAll(async () => {
+  const tenantId = (await owner.tenant.findFirstOrThrow({ where: { slug: TIRANA }, select: { id: true } })).id;
+  if ((await owner.riskScore.count({ where: { tenantId } })) > 0) return;
+  await owner.$transaction(async (tx) => seedSuccessDemo(tx, tenantId, await loadSeedStudents(tx, tenantId), startedAt), { timeout: 120_000 });
+  addedDemo = tenantId;
+}, 180_000);
+
 afterAll(async () => {
+  if (addedDemo) {
+    const tenantId = addedDemo;
+    await owner.$transaction([
+      owner.event.deleteMany({ where: { tenantId, occurredAt: { gte: startedAt } } }),
+      owner.trackAssignment.deleteMany({ where: { tenantId } }),
+      owner.alert.deleteMany({ where: { tenantId } }),
+      owner.actionCard.deleteMany({ where: { tenantId } }),
+      owner.riskScore.deleteMany({ where: { tenantId } }),
+    ]);
+  }
   await owner.$disconnect();
   await prisma.$disconnect();
 });

@@ -13,7 +13,7 @@ import { PERMISSIONS, ROLE_PERMISSIONS, SYSTEM_ROLES, type SystemRoleKey } from 
 import { runSetupWizard } from "../src/setup-wizard";
 import { createSuccessDefaults } from "../src/success-defaults";
 import { seedConcepts } from "./academic";
-import { type SeedStudent, seedSuccessDemo } from "./success";
+import { type SeedStudent, seedSuccessDemo, seedSuccessDemoEnabled } from "./success";
 import { pick, prng, seedId, seedToken } from "./deterministic";
 import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture, tenantDefaultLocale } from "./fixtures";
 import type { NamePool } from "./names";
@@ -313,7 +313,11 @@ async function seedTenant(
   // Success engine defaults: risk weights v1 (active) + alert rules with SLA ladders.
   await createSuccessDefaults(tx, tenantId, (table, key) => seedId(f.slug, table, key));
   // Synthetic demo risk scores -> real track proposals (action cards) and alerts.
-  const success = await seedSuccessDemo(tx, tenantId, seedStudents, new Date());
+  // Opt-in (SSOS_SEED_SUCCESS_DEMO=1): a plain seed leaves the success tables empty so
+  // the engine/jobs tests start from a known state; demos and the e2e turn it on.
+  const success = seedSuccessDemoEnabled()
+    ? await seedSuccessDemo(tx, tenantId, seedStudents, new Date())
+    : { scores: 0, cards: 0, alerts: 0 };
 
   await tx.auditLog.create({
     data: {

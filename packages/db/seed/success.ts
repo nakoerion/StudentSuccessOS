@@ -76,6 +76,27 @@ function mean(values: Prisma.Decimal[]): Prisma.Decimal | null {
 
 const r2 = (d: Prisma.Decimal) => d.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
 
+/**
+ * The seeded roster of a tenant as `SeedStudent`s, read back from the database (students
+ * are `S-NNN`, index = NNN - 1, grade = grade level of their class). Lets tests add the demo
+ * success data to a tenant that was seeded without it.
+ */
+export async function loadSeedStudents(tx: Tx, tenantId: string): Promise<SeedStudent[]> {
+  const rows = await tx.roleAssignment.findMany({
+    where: { tenantId, role: { key: "student", tenantId: null }, person: { externalRef: { startsWith: "S-" } } },
+    select: { personId: true, person: { select: { externalRef: true } }, tenantUnit: { select: { gradeLevel: true } } },
+  });
+  return rows
+    .filter((r) => r.tenantUnit?.gradeLevel != null)
+    .map((r) => ({ id: r.personId, grade: r.tenantUnit!.gradeLevel!, index: Number(r.person.externalRef!.slice(2)) - 1 }))
+    .sort((a, b) => a.index - b.index);
+}
+
+/** Demo success data is opt-in: set `SSOS_SEED_SUCCESS_DEMO=1` when running `pnpm db:seed`. */
+export function seedSuccessDemoEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.SSOS_SEED_SUCCESS_DEMO === "1";
+}
+
 export interface SuccessDemoResult {
   scores: number;
   cards: number;

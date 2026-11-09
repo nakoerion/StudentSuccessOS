@@ -16,7 +16,7 @@ test.describe.configure({ mode: "serial" });
 
 test.beforeAll(() => {
   test.setTimeout(600_000);
-  execSync("pnpm db:seed && pnpm auth:seed", { cwd: REPO_ROOT, stdio: "ignore" });
+  execSync("SSOS_SEED_SUCCESS_DEMO=1 pnpm db:seed && pnpm auth:seed", { cwd: REPO_ROOT, stdio: "ignore" });
 });
 
 async function signIn(page: Page, email: string) {
