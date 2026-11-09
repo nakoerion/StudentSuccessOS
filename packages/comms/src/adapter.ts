@@ -31,6 +31,8 @@ export interface SendError {
   message: string;
   /** false = retrying cannot help (bad address, recipient opted out, template rejected). */
   retryable: boolean;
+  /** The recipient is gone or has blocked us (blocked bot, expired push subscription, unsubscribed number): unbind them. */
+  optOut?: boolean;
 }
 
 export type SendResult =
@@ -62,7 +64,18 @@ export interface DeliveryReceipt {
   error?: SendError;
 }
 
-export type WebhookEvent = { kind: "inbound"; message: InboundMessage } | { kind: "receipt"; receipt: DeliveryReceipt };
+/** A provider-level opt-out (spam complaint, unsubscribe event) — distinct from a STOP text reply. */
+export interface OptOutEvent {
+  channel: Channel;
+  externalId: string;
+  reason: string;
+  at: Date;
+}
+
+export type WebhookEvent =
+  | { kind: "inbound"; message: InboundMessage }
+  | { kind: "receipt"; receipt: DeliveryReceipt }
+  | { kind: "opt_out"; optOut: OptOutEvent };
 
 export interface ProviderAdapter {
   /** Driver name for logs, e.g. "whatsapp-cloud", "fake". */
