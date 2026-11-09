@@ -35,7 +35,7 @@ bash scripts/supabase-db-up.sh    # Supabase Postgres: create ssos_owner/ssos_ap
 # (offline alternative: bash scripts/db-up.sh — local Postgres 16, roles + database + .env)
 pnpm install                      # also runs `prisma generate`
 pnpm db:migrate                   # prisma migrate deploy (as ssos_owner)
-pnpm db:seed                      # deterministic; safe to re-run
+pnpm db:seed                      # deterministic; safe to re-run (SSOS_SEED_SUCCESS_DEMO=1 adds demo risk/cards/alerts, see "Seed")
 pnpm auth:seed                    # create/refresh demo logins in Supabase Auth + link external_auth_id (idempotent)
 pnpm typecheck
 pnpm lint
@@ -683,6 +683,14 @@ branches on country.
 
 `pnpm db:seed` — deterministic (UUIDv5-style ids, seeded PRNG, hand-written name
 pools), re-runnable (each demo tenant is rebuilt; globals are upserted).
+
+**Demo success data is opt-in.** `SSOS_SEED_SUCCESS_DEMO=1 pnpm db:seed` also gives
+each demo tenant synthetic risk scores, the track proposals (action cards) and the alerts
+the real engine derives from them — use it for a live demo of the advisor inbox and
+dashboards. A plain `pnpm db:seed` leaves `risk_score`, `action_card`, `alert` and
+`track_assignment` empty, which is what `pnpm test` expects (the jobs tests assert on a
+tenant with no alerts or cards; the web success-UI test adds the demo data itself and
+removes it afterwards). The Playwright e2e reseeds with the flag on.
 
 | Tenant | Pack | Locale | Timezone | Join code | Sample invitation code |
 | --- | --- | --- | --- | --- | --- |

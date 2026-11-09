@@ -366,7 +366,7 @@ describe("global tables are not listable by the app role (Slice 2 tightening)", 
       (tx) => tx.person.findMany({ where: { userAccountId: { not: null } }, select: { tenantId: true } }),
       { client: app },
     );
-    expect(linked.length).toBe(3);
+    expect(linked.length).toBe(4); // demo logins: admin, teacher, parent, advisor
     expect(new Set(linked.map((p) => p.tenantId))).toEqual(new Set([TENANT_A]));
   });
 

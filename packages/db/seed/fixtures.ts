@@ -65,7 +65,7 @@ export const TENANTS: readonly TenantFixture[] = [
 ];
 
 /** Kinds of seeded per-tenant demo logins: `${kind}.${emailTag}@demo.ssos.test`. */
-export const DEMO_LOGIN_KINDS = ["admin", "teacher", "parent"] as const;
+export const DEMO_LOGIN_KINDS = ["admin", "teacher", "parent", "advisor"] as const;
 
 /** Every seeded demo login e-mail (per-tenant logins plus the no-role join@ account). */
 export function demoLoginEmails(): string[] {

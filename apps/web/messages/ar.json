@@ -76,7 +76,8 @@
   "nav": {
     "dashboard": "نظرة عامة",
     "people": "الأشخاص",
-    "switchSchool": "تبديل المدرسة"
+    "switchSchool": "تبديل المدرسة",
+    "inbox": "صندوق الإجراءات"
   },
   "dashboard": {
     "welcome": "مرحبًا، {name}",
@@ -134,6 +135,185 @@
   "success": {
     "nudge": {
       "goalWeekly": "المتابعة الأسبوعية لهدفك “{title}”: لقد أنجزت {progressPct}% من الطريق. الموعد النهائي: {deadline}."
+    },
+    "none": "—",
+    "tracks": {
+      "excellence": "التميّز",
+      "growth": "النمو",
+      "support": "الدعم"
+    },
+    "bands": {
+      "low": "منخفض",
+      "moderate": "متوسط",
+      "high": "مرتفع",
+      "critical": "حرج"
+    },
+    "confidence": {
+      "high": "عالية",
+      "medium": "متوسطة",
+      "low": "منخفضة"
+    },
+    "cardTypes": {
+      "track_transition": "تغيير المسار",
+      "intervention": "تدخّل",
+      "goal": "هدف",
+      "alert_followup": "متابعة تنبيه"
+    },
+    "factors": {
+      "gradeLevel": "مستوى الدرجات",
+      "gradeTrend": "اتجاه الدرجات",
+      "attendanceLevel": "الحضور",
+      "attendanceTrend": "اتجاه الحضور",
+      "lateMissing": "أعمال متأخرة أو غير مسلّمة",
+      "engagement": "المشاركة",
+      "concernNotes": "ملاحظات القلق"
+    },
+    "factorValue": {
+      "gradeLevel": "المعدل {value, number}%",
+      "gradeTrend": "{value, number, ::sign-always} نقطة",
+      "attendanceLevel": "حاضر {value, number}%",
+      "attendanceTrend": "{value, number, ::sign-always} نقطة",
+      "lateMissing": "{value, number, percent} من الأعمال",
+      "engagement": "المشاركة {value, number}",
+      "concernNotes": "{value, plural, zero {لا ملاحظات} one {ملاحظة واحدة} two {ملاحظتان} few {# ملاحظات} many {# ملاحظة} other {# ملاحظة}} خلال 30 يومًا"
+    },
+    "trackStatus": {
+      "active": "نشط",
+      "superseded": "مستبدَل",
+      "ended": "منتهٍ"
+    },
+    "alertStates": {
+      "open": "مفتوح",
+      "acknowledged": "تم الاطلاع",
+      "escalated": "مُصعَّد",
+      "resolved": "تمت المعالجة",
+      "dismissed": "مرفوض"
+    },
+    "severity": {
+      "info": "معلومة",
+      "warning": "تحذير",
+      "critical": "حرج"
+    },
+    "alertRules": {
+      "risk_high": "درجة خطر مرتفعة",
+      "risk_critical": "درجة خطر حرجة",
+      "attendance_low": "الحضور أقل من 90% (آخر 30 يومًا)",
+      "late_submissions": "3 أعمال أو أكثر متأخرة أو غير مسلّمة (آخر 14 يومًا)"
+    },
+    "errors": {
+      "unknown_card": "هذه البطاقة لم تعد موجودة.",
+      "already_decided": "اتخذ شخص آخر قرارًا بشأن هذه البطاقة بالفعل.",
+      "card_expired": "انتهت صلاحية هذه البطاقة. سيصل اقتراح جديد بعد إعادة الحساب التالية.",
+      "stale_card": "تغيّر مسار الطالب بعد اقتراح هذه البطاقة. ارفضها وانتظر اقتراحًا جديدًا.",
+      "unknown_decider": "حسابك غير مرتبط بشخص في هذه المدرسة.",
+      "not_authorized": "لا يسمح دورك باتخاذ قرار بشأن هذه البطاقة.",
+      "unsupported_card_type": "لا يمكن حاليًا سوى رفض هذا النوع من البطاقات.",
+      "invalid_decision": "هذا القرار غير ممكن. لتغيير المسار استخدم «تعديل» وغيّر حقلًا واحدًا على الأقل.",
+      "invalid_payload": "تحقق من التواريخ: يجب أن يكون تاريخ المراجعة في تاريخ السريان أو بعده، وأن يختلف المسار عن المسار الحالي.",
+      "invalid_form": "النموذج غير مكتمل. أعد تحميل الصفحة وحاول مرة أخرى.",
+      "unexpected": "حدث خطأ ما. يُرجى المحاولة مرة أخرى."
+    },
+    "inbox": {
+      "title": "صندوق الإجراءات",
+      "subtitle": "اقتراحات من محرك النجاح. لا يتغير شيء حتى يوافق عليها شخص أو يعدّلها أو يرفضها.",
+      "count": "{count, plural, zero {لا توجد بطاقات مفتوحة} one {بطاقة مفتوحة واحدة} two {بطاقتان مفتوحتان} few {# بطاقات مفتوحة} many {# بطاقة مفتوحة} other {# بطاقة مفتوحة}}",
+      "empty": "لا توجد بطاقات مفتوحة. لقد أنجزت كل شيء.",
+      "noTrack": "بلا مسار بعد",
+      "to": "إلى",
+      "confidence": "الثقة",
+      "coverage": "تغطية البيانات {pct}",
+      "topFactors": "أهم العوامل (نقاط الدرجة · مقارنة بطلاب الصف نفسه)",
+      "factorPoints": "{points} نقطة",
+      "noEvidence": "لا توجد أدلة خطر مرفقة بهذه البطاقة.",
+      "meta": "مُسندة إلى: {role} · اقتُرحت {created}",
+      "expires": "تنتهي {at}",
+      "note": "ملاحظة (اختيارية)",
+      "saving": "جارٍ الحفظ…",
+      "cancel": "إلغاء",
+      "approve": "موافقة",
+      "dismiss": "رفض",
+      "dismissReason": "السبب (اختياري)",
+      "dismissConfirm": "رفض البطاقة",
+      "readOnly": "لا يمكن إلا لدور {role} أو للمسؤول اتخاذ قرار بشأن هذه البطاقة.",
+      "decidedDismissed": "تم رفض البطاقة الخاصة بـ {student}.",
+      "decidedTrack": "{outcome, select, edited {تمت الموافقة مع تعديلات} other {تمت الموافقة}}: ينتقل {student} إلى مسار {track}.",
+      "edit": {
+        "open": "تعديل",
+        "track": "المسار",
+        "effectiveDate": "تاريخ السريان",
+        "reviewDate": "تاريخ المراجعة",
+        "submit": "موافقة مع تعديلات"
+      }
+    },
+    "risk": {
+      "title": "شرح درجة الخطر",
+      "subtitle": "كيف تُبنى الدرجة: مساهمة كل عامل، مقارنةً بطلاب الصف نفسه.",
+      "score": "درجة الخطر",
+      "cohortMean": "متوسط الصف {grade}: {score}",
+      "vsCohort": "{points} مقارنة بالصف",
+      "bandLabel": "خطر {band}",
+      "cohort": "مجموعة المقارنة",
+      "cohortValue": "الصف {grade} · {size} طالبًا ({scored} لديهم درجة)",
+      "cohortScore": "متوسط المجموعة",
+      "model": "النموذج",
+      "modelValue": "الإصدار {version} · {at}",
+      "columns": {
+        "factor": "العامل",
+        "signal": "المؤشر",
+        "risk": "الخطر (0–100)",
+        "weight": "الوزن",
+        "contribution": "المساهمة",
+        "baseline": "خطر المجموعة",
+        "vsBaseline": "مقارنة بالمجموعة"
+      },
+      "topBadge": "الأهم {rank}",
+      "noData": "لا توجد بيانات بعد",
+      "total": "المجموع = درجة الخطر",
+      "totalHint": "مجموع المساهمات يساوي الدرجة تمامًا.",
+      "explainer": "يُضرب خطر كل عامل (0–100) في وزنه؛ وتُستبعد العوامل التي لا تتوفر لها بيانات ويُعاد توزيع الأوزان المتبقية. يوضّح عمود «مقارنة بالمجموعة» النقاط فوق (+) أو تحت (−) الطالب المعتاد في الصف نفسه.",
+      "empty": "لا توجد درجة خطر بعد. ستظهر بعد أول إعادة حساب تتوفر فيها درجات أو حضور."
+    },
+    "profile": {
+      "title": "الطالب",
+      "back": "العودة إلى الطلاب",
+      "trackBadge": "مسار {track}",
+      "noTrack": "بلا مسار بعد",
+      "openCards": "بطاقات الإجراءات المفتوحة",
+      "noOpenCards": "لا توجد بطاقات إجراءات مفتوحة لهذا الطالب."
+    },
+    "trackHistory": {
+      "title": "سجل المسارات",
+      "subtitle": "كل تعيينات المسار، الأحدث أولًا. لا يتغير المسار إلا عندما يوافق شخص على بطاقة.",
+      "columns": {
+        "track": "المسار",
+        "status": "الحالة",
+        "effective": "السريان",
+        "review": "المراجعة",
+        "confidence": "الثقة",
+        "decision": "القرار"
+      },
+      "empty": "لا توجد تعيينات مسار بعد — الطالب على مسار النمو الافتراضي.",
+      "decidedBy": "{status, select, edited {تمت الموافقة مع تعديلات} other {تمت الموافقة}} بواسطة {by} · {at}"
+    },
+    "alerts": {
+      "title": "التنبيهات",
+      "subtitle": "يتدرج التصعيد من المعلم إلى المرشد ثم ولي الأمر؛ ولكل مستوى مهلة للاطلاع.",
+      "columns": {
+        "rule": "التنبيه",
+        "state": "الحالة",
+        "rung": "المستوى الحالي",
+        "due": "موعد المهلة",
+        "acknowledged": "الاطلاع"
+      },
+      "empty": "لا توجد تنبيهات لهذا الطالب.",
+      "triggered": "بدأ {at}",
+      "rung": "المستوى {rung} من {of} · {role}",
+      "noTimer": "المؤقت متوقف",
+      "dueIn": "خلال {duration}",
+      "overdue": "متأخر بمقدار {duration}",
+      "notAcknowledged": "لم يتم الاطلاع",
+      "ackBy": "{by} ({role}) · {at}",
+      "duration": "{days, plural, =0 {} other {# ي }}{hours} س {minutes} د"
     }
   }
 }

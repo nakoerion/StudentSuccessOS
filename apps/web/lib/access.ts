@@ -28,6 +28,15 @@ export async function loadViewer(tx: TenantTx, personId: string): Promise<Viewer
   return { personId, roles, permissions };
 }
 
+/**
+ * Success-engine views (action inbox, risk explanation, track history, alerts) are staff
+ * views over the whole roster: they need `roster.read`. Deciding a card is a separate,
+ * service-enforced rule (the card's assignee role or admin).
+ */
+export function canViewSuccess(viewer: Viewer): boolean {
+  return viewer.permissions.has("roster.read");
+}
+
 export function rosterScope(viewer: Viewer): RosterScope {
   if (viewer.permissions.has("roster.read")) return { kind: "all" };
   if (viewer.permissions.has("guardianship.read_own")) {
