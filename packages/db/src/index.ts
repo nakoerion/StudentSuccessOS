@@ -15,3 +15,4 @@ export * from "./action-cards";
 export * from "./alerts";
 export * from "./interventions";
 export * from "./goals";
+export * from "./comms-defaults";

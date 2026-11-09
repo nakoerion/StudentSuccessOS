@@ -11,6 +11,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { createAdminClient } from "../src/client";
 import { PERMISSIONS, ROLE_PERMISSIONS, SYSTEM_ROLES, type SystemRoleKey } from "../src/system-roles";
 import { runSetupWizard } from "../src/setup-wizard";
+import { createCommsDefaults } from "../src/comms-defaults";
 import { createSuccessDefaults } from "../src/success-defaults";
 import { seedConcepts } from "./academic";
 import { type SeedStudent, seedSuccessDemo, seedSuccessDemoEnabled } from "./success";
@@ -312,6 +313,8 @@ async function seedTenant(
 
   // Success engine defaults: risk weights v1 (active) + alert rules with SLA ladders.
   await createSuccessDefaults(tx, tenantId, (table, key) => seedId(f.slug, table, key));
+  // Communications defaults: per-role notification preferences with quiet hours.
+  await createCommsDefaults(tx, tenantId, (table, key) => seedId(f.slug, table, key));
   // Synthetic demo risk scores -> real track proposals (action cards) and alerts.
   // Opt-in (SSOS_SEED_SUCCESS_DEMO=1): a plain seed leaves the success tables empty so
   // the engine/jobs tests start from a known state; demos and the e2e turn it on.
