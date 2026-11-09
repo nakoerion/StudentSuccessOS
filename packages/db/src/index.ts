@@ -16,3 +16,4 @@ export * from "./alerts";
 export * from "./interventions";
 export * from "./goals";
 export * from "./comms-defaults";
+export * from "./outbox-store";

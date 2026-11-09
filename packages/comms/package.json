@@ -14,8 +14,12 @@
   "devDependencies": {
     "@ssos/config": "workspace:*",
     "@types/node": "^22.0.0",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9.39.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
   }
 }

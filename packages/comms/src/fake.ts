@@ -73,6 +73,7 @@ export class FakeDriver implements ProviderAdapter {
             code: failure.code ?? "fake_unavailable",
             message: failure.message ?? "simulated provider failure",
             retryable: failure.retryable ?? true,
+            ...(failure.optOut ? { optOut: true } : {}),
           },
         }
       : { ok: true, providerMessageId: `fake-${this.channel}-${++this.counter}`, acceptedAt: at };
@@ -97,11 +98,16 @@ export class FakeDriver implements ProviderAdapter {
   parseWebhook(request: WebhookRequest): WebhookEvent[] {
     const events = JSON.parse(request.rawBody) as WebhookEvent[];
     // JSON turns dates into strings; restore them.
-    return events.map((e) =>
-      e.kind === "inbound"
-        ? { kind: "inbound", message: { ...e.message, receivedAt: new Date(e.message.receivedAt) } }
-        : { kind: "receipt", receipt: { ...e.receipt, at: new Date(e.receipt.at) } },
-    );
+    return events.map((e): WebhookEvent => {
+      switch (e.kind) {
+        case "inbound":
+          return { kind: "inbound", message: { ...e.message, receivedAt: new Date(e.message.receivedAt) } };
+        case "receipt":
+          return { kind: "receipt", receipt: { ...e.receipt, at: new Date(e.receipt.at) } };
+        case "opt_out":
+          return { kind: "opt_out", optOut: { ...e.optOut, at: new Date(e.optOut.at) } };
+      }
+    });
   }
 
   private sign(rawBody: string): string {
