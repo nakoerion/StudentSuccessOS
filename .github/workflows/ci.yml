@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      # Same shape as .env.example. Passwords are CI-only throwaways.
+      DATABASE_URL: postgresql://ssos_app:ssos_app_ci@localhost:5432/ssos
+      DATABASE_ADMIN_URL: postgresql://ssos_owner:ssos_owner_ci@localhost:5432/ssos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Create roles and database (owner BYPASSRLS, app NOBYPASSRLS)
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/postgres" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE ssos_owner LOGIN PASSWORD 'ssos_owner_ci' NOSUPERUSER BYPASSRLS CREATEDB;
+          CREATE ROLE ssos_app   LOGIN PASSWORD 'ssos_app_ci'   NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+          CREATE DATABASE ssos OWNER ssos_owner;
+          SQL
+          psql "postgresql://postgres:postgres@localhost:5432/ssos" -v ON_ERROR_STOP=1 <<'SQL'
+          ALTER SCHEMA public OWNER TO ssos_owner;
+          REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+          GRANT USAGE ON SCHEMA public TO ssos_app;
+          SQL
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+
+      - name: RLS drift check (committed migration must equal generator output)
+        run: pnpm --filter @ssos/db test -- rls-coverage
+
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+      - name: Secret scan (no committed keys or connection strings)
+        run: |
+          if git grep -nE 'sb_secret_[A-Za-z0-9]{10,}|eyJ[A-Za-z0-9_-]{30,}\.|postgres(ql)?://[^ ]+:[^@ ]{8,}@[a-z0-9.-]+\.supabase\.(co|com)' -- . ':!pnpm-lock.yaml' ':!.env.example'; then
+            echo "Possible secret committed"; exit 1
+          fi
