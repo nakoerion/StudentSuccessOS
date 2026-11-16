@@ -211,6 +211,7 @@ async function seedTenant(
 
   // Students: take the family name of their parent, 10 per class.
   const seedStudents: SeedStudent[] = [];
+  let firstStudent: PersonRow | undefined;
   let s = 0;
   for (const fam of families) {
     for (let k = 0; k < fam.kids; k++, s++) {
@@ -224,6 +225,7 @@ async function seedTenant(
         unit.gradeLevel + 6,
       );
       assign(student, "student", unit.id);
+      firstStudent ??= student;
       seedStudents.push({ id: student.id, grade: unit.gradeLevel, index: s });
       guardianships.push({
         id: seedId(f.slug, "guardianship", fam.parent.externalRef, student.externalRef),
@@ -273,6 +275,7 @@ async function seedTenant(
     ["teacher", teachers[0]!],
     ["parent", families[0]!.parent],
     ["advisor", advisor!],
+    ["student", firstStudent!],
   ];
   for (const [kind, person] of demo) {
     const email = `${kind}.${f.emailTag}@${DEMO_EMAIL_DOMAIN}`;
