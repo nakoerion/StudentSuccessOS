@@ -46,7 +46,7 @@ export default async function TutorPage({ params }: { params: Params }) {
       ) : (
         <TutorChat
           tenantSlug={tenantSlug}
-          subjects={subjects.map((s) => ({ courseId: s.courseId, label: `${s.subject} · ${s.courseName}` }))}
+          subjects={subjects.map((s) => ({ courseId: s.courseId, label: s.courseName }))}
         />
       )}
     </div>
