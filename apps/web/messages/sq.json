@@ -77,7 +77,8 @@
     "dashboard": "Përmbledhje",
     "people": "Njerëzit",
     "switchSchool": "Ndrysho shkollën",
-    "inbox": "Kutia e veprimeve"
+    "inbox": "Kutia e veprimeve",
+    "tutor": "Tutori"
   },
   "dashboard": {
     "welcome": "Mirë se vini, {name}",
@@ -314,6 +315,57 @@
       "notAcknowledged": "Pa u marrë në dijeni",
       "ackBy": "{by} ({role}) · {at}",
       "duration": "{days, plural, =0 {} other {#d }}{hours}o {minutes}m"
+    }
+  },
+  "tutor": {
+    "title": "Tutori AI",
+    "subtitle": "Zgjidh një lëndë dhe një mënyrë pune, pastaj bëj pyetjen. Tutori të udhëheq drejt përgjigjes në vend që të ta japë gati.",
+    "subject": "Lënda",
+    "mode": "Si të ndihmojë tutori?",
+    "newConversation": "Bisedë e re",
+    "empty": "Biseda jote do të shfaqet këtu.",
+    "thinking": "Tutori po mendon…",
+    "inputLabel": "Mesazhi yt për tutorin",
+    "placeholder": "Shkruaj pyetjen… (Enter për ta dërguar, Shift+Enter për rresht të ri)",
+    "send": "Dërgo",
+    "disclaimer": "Tutori mund të gabojë. Kontrollo përgjigjet e rëndësishme me mësuesin.",
+    "noSubjects": "Nuk je regjistruar ende në asnjë klasë, ndaj nuk ka lëndë për të hapur tutorin. Kërkoji shkollës të të shtojë në klasat e tua.",
+    "modes": {
+      "socratic": {
+        "label": "Më udhëhiq",
+        "hint": "Pyetje që të çojnë te përgjigjja"
+      },
+      "concept": {
+        "label": "Shpjego një koncept",
+        "hint": "Shpjegim i qartë i një ideje"
+      },
+      "worked_example": {
+        "label": "Shembull i zgjidhur",
+        "hint": "Një problem i ngjashëm, hap pas hapi"
+      },
+      "practice": {
+        "label": "Ushtrime",
+        "hint": "Pyetje për t'u provuar, me komente"
+      },
+      "exam_prep": {
+        "label": "Përgatitje për provim",
+        "hint": "Përsëritje në stilin e provimit"
+      },
+      "writing_feedback": {
+        "label": "Komente për shkrimin",
+        "hint": "Vërejtje për shkrimin tënd"
+      }
+    },
+    "unavailable": {
+      "title": "Tutori nuk është i disponueshëm tani",
+      "body": "Nuk po arrijmë të lidhemi me shërbimin e tutorit për momentin. Klasat dhe notat e tua nuk preken — provo përsëri pak më vonë."
+    },
+    "errors": {
+      "unavailable": "Tutori nuk u arrit. Mesazhi yt u ruajt — provo ta dërgosh përsëri pas pak.",
+      "session_expired": "Kjo bisedë ka përfunduar. Mesazhi yt i radhës nis një bisedë të re.",
+      "pii_blocked": "Mesazhi yt nuk u dërgua sepse duket se përmban të dhëna personale (si emër, numër telefoni ose email). Hiqi ato dhe provo përsëri.",
+      "rate_limited": "Po dërgon mesazhe shumë shpejt. Prit pak dhe provo përsëri.",
+      "invalid": "Mesazhi nuk mund të dërgohej. Kontrolloje dhe provo përsëri."
     }
   }
 }

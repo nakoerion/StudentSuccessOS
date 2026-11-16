@@ -1,12 +1,12 @@
 "use client";
 
 import { cn } from "@ssos/ui";
-import { Inbox, LayoutDashboard, Users } from "lucide-react";
+import { GraduationCap, Inbox, LayoutDashboard, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-export function TenantNav({ slug, showInbox = false }: { slug: string; showInbox?: boolean }) {
+export function TenantNav({ slug, showInbox = false, showTutor = false }: { slug: string; showInbox?: boolean; showTutor?: boolean }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const base = `/t/${slug}`;
@@ -19,6 +19,7 @@ export function TenantNav({ slug, showInbox = false }: { slug: string; showInbox
       active: pathname.startsWith(`${base}/people`) || pathname.startsWith(`${base}/students`),
     },
     ...(showInbox ? [{ href: `${base}/inbox`, label: t("inbox"), icon: Inbox, active: pathname.startsWith(`${base}/inbox`) }] : []),
+    ...(showTutor ? [{ href: `${base}/tutor`, label: t("tutor"), icon: GraduationCap, active: pathname.startsWith(`${base}/tutor`) }] : []),
   ];
   return (
     <nav className="flex items-center gap-1" aria-label={t("dashboard")}>

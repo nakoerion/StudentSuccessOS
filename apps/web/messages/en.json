@@ -77,7 +77,8 @@
     "dashboard": "Overview",
     "people": "People",
     "switchSchool": "Switch school",
-    "inbox": "Action inbox"
+    "inbox": "Action inbox",
+    "tutor": "Tutor"
   },
   "dashboard": {
     "welcome": "Welcome, {name}",
@@ -314,6 +315,57 @@
       "notAcknowledged": "Not acknowledged",
       "ackBy": "{by} ({role}) · {at}",
       "duration": "{days, plural, =0 {} other {#d }}{hours}h {minutes}m"
+    }
+  },
+  "tutor": {
+    "title": "AI tutor",
+    "subtitle": "Pick a subject and a way of working, then ask your question. The tutor guides you to the answer rather than just giving it.",
+    "subject": "Subject",
+    "mode": "How should the tutor help?",
+    "newConversation": "New conversation",
+    "empty": "Your conversation will appear here.",
+    "thinking": "The tutor is thinking…",
+    "inputLabel": "Your message to the tutor",
+    "placeholder": "Type your question… (Enter to send, Shift+Enter for a new line)",
+    "send": "Send",
+    "disclaimer": "The tutor can make mistakes. Check important answers with your teacher.",
+    "noSubjects": "You are not enrolled in any class yet, so there is no subject to open the tutor for. Ask your school to add you to your classes.",
+    "modes": {
+      "socratic": {
+        "label": "Guide me",
+        "hint": "Questions that lead you to the answer"
+      },
+      "concept": {
+        "label": "Explain a concept",
+        "hint": "A clear explanation of an idea"
+      },
+      "worked_example": {
+        "label": "Worked example",
+        "hint": "A similar problem solved step by step"
+      },
+      "practice": {
+        "label": "Practice",
+        "hint": "Questions to try, with feedback"
+      },
+      "exam_prep": {
+        "label": "Exam prep",
+        "hint": "Revision in exam style"
+      },
+      "writing_feedback": {
+        "label": "Writing feedback",
+        "hint": "Comments on your own writing"
+      }
+    },
+    "unavailable": {
+      "title": "The tutor is unavailable right now",
+      "body": "We can't reach the tutor service at the moment. Your classes and grades are unaffected — please try again a little later."
+    },
+    "errors": {
+      "unavailable": "The tutor couldn't be reached. Your message was kept — try sending it again in a moment.",
+      "session_expired": "This conversation has ended. Your next message starts a new one.",
+      "pii_blocked": "Your message wasn't sent because it seems to contain personal details (like a name, phone number or email). Remove them and try again.",
+      "rate_limited": "You're sending messages quickly. Wait a moment, then try again.",
+      "invalid": "That message couldn't be sent. Check it and try again."
     }
   }
 }

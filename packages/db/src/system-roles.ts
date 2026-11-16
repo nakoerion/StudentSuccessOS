@@ -20,6 +20,7 @@ export const PERMISSIONS = [
   { key: "guardianship.read_own", description: "View own linked students" },
   { key: "consent.manage_own", description: "Give or revoke consent for self or own children" },
   { key: "audit.read", description: "Read the audit log" },
+  { key: "tutor.use", description: "Use the AI tutor for own learning" },
 ] as const;
 
 export const ROLE_PERMISSIONS: Record<SystemRoleKey, readonly (typeof PERMISSIONS)[number]["key"][]> = {
@@ -28,5 +29,5 @@ export const ROLE_PERMISSIONS: Record<SystemRoleKey, readonly (typeof PERMISSION
   teacher: ["roster.read"],
   trainer: ["roster.read"],
   parent: ["guardianship.read_own", "consent.manage_own"],
-  student: ["consent.manage_own"],
+  student: ["consent.manage_own", "tutor.use"],
 };

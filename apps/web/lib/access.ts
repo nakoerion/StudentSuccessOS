@@ -37,6 +37,11 @@ export function canViewSuccess(viewer: Viewer): boolean {
   return viewer.permissions.has("roster.read");
 }
 
+/** The AI tutor is a student's own tool: it needs `tutor.use` (seeded for the student role). */
+export function canUseTutor(viewer: Viewer): boolean {
+  return viewer.permissions.has("tutor.use");
+}
+
 export function rosterScope(viewer: Viewer): RosterScope {
   if (viewer.permissions.has("roster.read")) return { kind: "all" };
   if (viewer.permissions.has("guardianship.read_own")) {
