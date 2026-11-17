@@ -78,7 +78,8 @@
     "people": "Njerëzit",
     "switchSchool": "Ndrysho shkollën",
     "inbox": "Kutia e veprimeve",
-    "tutor": "Tutori"
+    "tutor": "Tutori",
+    "mastery": "Zotërimi"
   },
   "dashboard": {
     "welcome": "Mirë se vini, {name}",
@@ -366,6 +367,54 @@
       "pii_blocked": "Mesazhi yt nuk u dërgua sepse duket se përmban të dhëna personale (si emër, numër telefoni ose email). Hiqi ato dhe provo përsëri.",
       "rate_limited": "Po dërgon mesazhe shumë shpejt. Prit pak dhe provo përsëri.",
       "invalid": "Mesazhi nuk mund të dërgohej. Kontrolloje dhe provo përsëri."
+    }
+  },
+  "mastery": {
+    "title": "Zotërimi i koncepteve",
+    "subtitle": "Zgjidhni një klasë për të parë me cilat koncepte ka vështirësi. Zotërimi vlerësohet nga puna e nxënësve me tutorin AI, prandaj shfaqet vetëm për konceptet që nxënësi i ka ushtruar realisht.",
+    "classLabel": "Klasa",
+    "loading": "Po ngarkohet…",
+    "noClasses": {
+      "title": "Ende nuk ka klasa",
+      "body": "Kjo shkollë nuk ka klasa të krijuara, ndaj nuk ka asgjë për të shfaqur. Klasat krijohen gjatë konfigurimit të shkollës."
+    },
+    "noStudents": {
+      "title": "Nuk ka nxënës në këtë klasë",
+      "body": "Askush nuk është regjistruar ende në këtë klasë, ndaj nuk ka të dhëna zotërimi."
+    },
+    "unavailable": {
+      "title": "Zotërimi nuk është i disponueshëm tani",
+      "body": "Për momentin nuk mund të lidhemi me shërbimin AI që mban të dhënat e zotërimit. Asgjë nuk ka humbur — provoni përsëri pak më vonë."
+    },
+    "empty": {
+      "title": "Ende nuk ka të dhëna zotërimi për këtë klasë",
+      "body": "Zotërimi ekziston vetëm pasi nxënësit përdorin tutorin AI. Asnjë nxënës i kësaj klase nuk ka ushtruar ende një koncept me tutorin, ndaj nuk ka çfarë të matet — kjo nuk do të thotë se ata janë prapa."
+    },
+    "summary": {
+      "title": "Ku {className} është më e dobët",
+      "subtitle": "Konceptet të renditura sipas mesatares së klasës, nga më i dobëti. Mesataret llogarisin vetëm nxënësit që janë vlerësuar për konceptin.",
+      "average": "Mesatarja e klasës {value}",
+      "assessed": "{count} nga {total} nxënës të vlerësuar"
+    },
+    "grid": {
+      "title": "Nxënësit × konceptet",
+      "student": "Nxënësi",
+      "noData": "Pa të dhëna",
+      "attempts": "{count, plural, one {# përpjekje} other {# përpjekje}}",
+      "cellTitle": "{student} · {concept}: zotërim {value}, {correct} të sakta nga {attempts}",
+      "noDataTitle": "{student} · {concept}: ende i pavlerësuar",
+      "unassessed": "{count, plural, one {# nxënës nuk ka} other {# nxënës nuk kanë}} ende përpjekje me tutorin.",
+      "note": "\"Pa të dhëna\" do të thotë ende i pavlerësuar, jo zotërim zero."
+    },
+    "legend": {
+      "title": "Legjenda",
+      "noData": "I pavlerësuar"
+    },
+    "levels": {
+      "low": "Nën 40%",
+      "developing": "40–59%",
+      "secure": "60–79%",
+      "strong": "80% e lart"
     }
   }
 }

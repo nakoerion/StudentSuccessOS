@@ -67,6 +67,31 @@ export type TutorTurnResult =
   | { outcome: "handoff"; sessionId: string; category: string; message: string; eventId: string }
   | { outcome: "unavailable"; sessionId: string; reason: string; message: string };
 
+/** Mirrors sso-ai `GET /v1/mastery` (src/app.ts). */
+export const MASTERY_MAX_STUDENTS = 200;
+
+export interface MasteryCell {
+  conceptCode: string;
+  /** Bayesian Knowledge Tracing estimate, 0..1. */
+  pMastery: number;
+  attempts: number;
+  correct: number;
+  lastSeen: string;
+}
+
+export interface MasteryResult {
+  tenantId: string;
+  /** Sorted union of the concept codes found for these students. */
+  concepts: string[];
+  /** One entry per requested student; an empty `mastery` means no attempts yet (not zero). */
+  students: { studentId: string; mastery: MasteryCell[] }[];
+}
+
+export interface MasteryRequest {
+  studentIds: string[];
+  conceptPrefix?: string;
+}
+
 // ─── Errors ─────────────────────────────────────────────────────────────────
 
 export type AiErrorKind =
@@ -119,6 +144,8 @@ export interface AiClient {
   /** Authenticated liveness check: true when the service is up and accepts our token. */
   ping(): Promise<boolean>;
   tutorTurn(req: TutorTurnRequest): Promise<TutorTurnResult>;
+  /** Traced mastery for up to MASTERY_MAX_STUDENTS students of the bound tenant. */
+  mastery(req: MasteryRequest): Promise<MasteryResult>;
 }
 
 const ERROR_KINDS: Record<string, AiErrorKind> = {
@@ -151,6 +178,24 @@ function isTurnResult(v: unknown): v is TutorTurnResult {
     default:
       return false;
   }
+}
+
+function isMasteryResult(v: unknown): v is MasteryResult {
+  if (!v || typeof v !== "object") return false;
+  const r = v as Record<string, unknown>;
+  if (typeof r.tenantId !== "string" || !Array.isArray(r.concepts) || !Array.isArray(r.students)) return false;
+  return r.students.every((s: unknown) => {
+    if (!s || typeof s !== "object") return false;
+    const st = s as Record<string, unknown>;
+    return (
+      typeof st.studentId === "string" &&
+      Array.isArray(st.mastery) &&
+      st.mastery.every((m: unknown) => {
+        const c = m as Record<string, unknown> | null;
+        return !!c && typeof c.conceptCode === "string" && typeof c.pMastery === "number" && typeof c.attempts === "number";
+      })
+    );
+  });
 }
 
 /**
@@ -207,6 +252,19 @@ export function createAiClient(tenantId: string, config: AiClientConfig | null =
       // tenantId last: the bound tenant always wins over anything smuggled into req.
       const out = await call("POST", "/v1/tutor/turns", { ...req, tenantId });
       if (!isTurnResult(out)) throw new AiServiceError("unreachable", 200, "unexpected_response");
+      return out;
+    },
+    async mastery(req) {
+      const ids = [...new Set(req.studentIds)];
+      if (ids.length === 0) return { tenantId, concepts: [], students: [] };
+      if (ids.length > MASTERY_MAX_STUDENTS) throw new AiServiceError("invalid_request", undefined, "too_many_students");
+      const qs = new URLSearchParams();
+      for (const id of ids) qs.append("studentId", id);
+      if (req.conceptPrefix) qs.set("conceptPrefix", req.conceptPrefix);
+      // tenantId last: the bound tenant always wins.
+      qs.set("tenantId", tenantId);
+      const out = await call("GET", `/v1/mastery?${qs.toString()}`);
+      if (!isMasteryResult(out) || out.tenantId !== tenantId) throw new AiServiceError("unreachable", 200, "unexpected_response");
       return out;
     },
   };

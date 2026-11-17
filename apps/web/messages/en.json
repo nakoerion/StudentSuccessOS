@@ -78,7 +78,8 @@
     "people": "People",
     "switchSchool": "Switch school",
     "inbox": "Action inbox",
-    "tutor": "Tutor"
+    "tutor": "Tutor",
+    "mastery": "Mastery"
   },
   "dashboard": {
     "welcome": "Welcome, {name}",
@@ -366,6 +367,54 @@
       "pii_blocked": "Your message wasn't sent because it seems to contain personal details (like a name, phone number or email). Remove them and try again.",
       "rate_limited": "You're sending messages quickly. Wait a moment, then try again.",
       "invalid": "That message couldn't be sent. Check it and try again."
+    }
+  },
+  "mastery": {
+    "title": "Concept mastery",
+    "subtitle": "Pick a class to see which concepts it is struggling with. Mastery is estimated from students' work with the AI tutor, so it only appears for concepts a student has actually practised.",
+    "classLabel": "Class",
+    "loading": "Loading…",
+    "noClasses": {
+      "title": "No classes yet",
+      "body": "This school has no classes set up, so there is nothing to show. Classes are created in the school's setup."
+    },
+    "noStudents": {
+      "title": "No students in this class",
+      "body": "Nobody is enrolled in this class yet, so there is no mastery to show."
+    },
+    "unavailable": {
+      "title": "Mastery is unavailable right now",
+      "body": "We can't reach the AI service that holds mastery data at the moment. Nothing has been lost — please try again a little later."
+    },
+    "empty": {
+      "title": "No mastery data for this class yet",
+      "body": "Mastery only exists after students use the AI tutor. No student in this class has practised a concept with the tutor yet, so there is nothing to measure — this does not mean they are behind."
+    },
+    "summary": {
+      "title": "Where {className} is weakest",
+      "subtitle": "Concepts ranked by class average, weakest first. Averages count only students who have been assessed on the concept.",
+      "average": "Class average {value}",
+      "assessed": "{count} of {total} students assessed"
+    },
+    "grid": {
+      "title": "Students × concepts",
+      "student": "Student",
+      "noData": "No data",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "cellTitle": "{student} · {concept}: {value} mastery, {correct} of {attempts} correct",
+      "noDataTitle": "{student} · {concept}: not assessed yet",
+      "unassessed": "{count, plural, one {# student has} other {# students have}} no tutor attempts yet.",
+      "note": "\"No data\" means not yet assessed, not zero mastery."
+    },
+    "legend": {
+      "title": "Legend",
+      "noData": "Not assessed"
+    },
+    "levels": {
+      "low": "Below 40%",
+      "developing": "40–59%",
+      "secure": "60–79%",
+      "strong": "80% and above"
     }
   }
 }
