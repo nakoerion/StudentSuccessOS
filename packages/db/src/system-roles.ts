@@ -22,10 +22,11 @@ export const PERMISSIONS = [
   { key: "audit.read", description: "Read the audit log" },
   { key: "tutor.use", description: "Use the AI tutor for own learning" },
   { key: "mastery.read", description: "View concept mastery across students (advisor heatmap)" },
+  { key: "ai_usage.read", description: "View the school's AI spend against its budget and evaluation results" },
 ] as const;
 
 export const ROLE_PERMISSIONS: Record<SystemRoleKey, readonly (typeof PERMISSIONS)[number]["key"][]> = {
-  admin: ["tenant.manage", "roster.read", "roster.write", "roster.import", "invitation.manage", "audit.read", "mastery.read"],
+  admin: ["tenant.manage", "roster.read", "roster.write", "roster.import", "invitation.manage", "audit.read", "mastery.read", "ai_usage.read"],
   advisor: ["roster.read", "mastery.read"],
   teacher: ["roster.read"],
   trainer: ["roster.read"],

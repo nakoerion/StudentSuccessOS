@@ -50,6 +50,11 @@ export function canViewMastery(viewer: Viewer): boolean {
   return viewer.permissions.has("mastery.read") && viewer.permissions.has("roster.read");
 }
 
+/** The AI usage and quality page: the school's AI spend and budget. Seeded for admin only. */
+export function canViewAiUsage(viewer: Viewer): boolean {
+  return viewer.permissions.has("ai_usage.read");
+}
+
 export function rosterScope(viewer: Viewer): RosterScope {
   if (viewer.permissions.has("roster.read")) return { kind: "all" };
   if (viewer.permissions.has("guardianship.read_own")) {

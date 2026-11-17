@@ -92,6 +92,65 @@ export interface MasteryRequest {
   conceptPrefix?: string;
 }
 
+/** Mirrors sso-ai `GET /v1/admin/usage` (src/gateway/usage.ts, src/gateway/budget.ts). */
+export type BudgetPool = "discretionary" | "essential";
+
+export interface PoolUsage {
+  capUsd: number;
+  spentUsd: number;
+  remainingUsd: number;
+  usedRatio: number;
+  warningRatio: number;
+  warning: boolean;
+  exhausted: boolean;
+  hardStop: boolean;
+  calls: number;
+  fakeCalls: number;
+}
+
+export type DiscretionaryDerivation =
+  | { basis: "explicit"; capUsd: number; seatCount: number | null }
+  | { basis: "per_seat"; capUsd: number; seatCount: number; perSeatUsd: number; floorUsd: number }
+  | { basis: "floor"; capUsd: number; seatCount: number | null; perSeatUsd: number; floorUsd: number };
+
+export type EssentialDerivation =
+  | { basis: "explicit"; capUsd: number }
+  | { basis: "share"; capUsd: number; share: number }
+  | { basis: "floor"; capUsd: number; floorUsd: number };
+
+export interface UsageReport {
+  tenantId: string;
+  monthStart: string;
+  currency: "USD";
+  pools: Record<BudgetPool, PoolUsage>;
+  derivation: { discretionary: DiscretionaryDerivation; essential: EssentialDerivation };
+  /** No recorded call this month came from a live model: the spend figure is nominal. */
+  nominal: boolean;
+}
+
+/** Mirrors sso-ai `GET /v1/admin/evals` (src/eval/store.ts). Runs are not tenant data. */
+export type EvalProviderMode = "fake" | "live" | "mixed" | "none";
+
+export interface EvalRun {
+  id: string;
+  suiteId: string;
+  suiteKind: string;
+  pack: string | null;
+  subject: string | null;
+  providerMode: EvalProviderMode;
+  models: string[];
+  cases: number;
+  passed: number;
+  plumbingScore: number;
+  /** null when no live model answered: quality was not measured. */
+  qualityScore: number | null;
+  qualityMeasured: number;
+  verdict: "pass" | "first_run" | "regression" | "below_floor";
+  costUsd: number;
+  startedAt: string;
+  finishedAt: string;
+}
+
 // ─── Errors ─────────────────────────────────────────────────────────────────
 
 export type AiErrorKind =
@@ -146,6 +205,33 @@ export interface AiClient {
   tutorTurn(req: TutorTurnRequest): Promise<TutorTurnResult>;
   /** Traced mastery for up to MASTERY_MAX_STUDENTS students of the bound tenant. */
   mastery(req: MasteryRequest): Promise<MasteryResult>;
+  /** The bound tenant's AI spend this month against both pool caps. */
+  usage(): Promise<UsageReport>;
+  /** Latest evaluation run per suite (service-wide, not tenant data). */
+  latestEvals(): Promise<EvalRun[]>;
+}
+
+function isUsageReport(v: unknown): v is UsageReport {
+  if (!v || typeof v !== "object") return false;
+  const r = v as Record<string, unknown>;
+  const pools = r.pools as Record<string, Record<string, unknown> | undefined> | undefined;
+  const deriv = r.derivation as Record<string, { basis?: unknown } | undefined> | undefined;
+  const okPool = (p: Record<string, unknown> | undefined) =>
+    !!p && typeof p.capUsd === "number" && typeof p.spentUsd === "number" && typeof p.warning === "boolean";
+  return (
+    typeof r.tenantId === "string" &&
+    typeof r.nominal === "boolean" &&
+    !!pools && okPool(pools.discretionary) && okPool(pools.essential) &&
+    !!deriv && typeof deriv.discretionary?.basis === "string" && typeof deriv.essential?.basis === "string"
+  );
+}
+
+function isEvalRuns(v: unknown): v is { runs: EvalRun[] } {
+  if (!v || typeof v !== "object" || !Array.isArray((v as { runs?: unknown }).runs)) return false;
+  return (v as { runs: unknown[] }).runs.every((x) => {
+    const r = x as Record<string, unknown> | null;
+    return !!r && typeof r.suiteId === "string" && typeof r.providerMode === "string" && typeof r.cases === "number";
+  });
 }
 
 const ERROR_KINDS: Record<string, AiErrorKind> = {
@@ -266,6 +352,16 @@ export function createAiClient(tenantId: string, config: AiClientConfig | null =
       const out = await call("GET", `/v1/mastery?${qs.toString()}`);
       if (!isMasteryResult(out) || out.tenantId !== tenantId) throw new AiServiceError("unreachable", 200, "unexpected_response");
       return out;
+    },
+    async usage() {
+      const out = await call("GET", `/v1/admin/usage?${new URLSearchParams({ tenantId }).toString()}`);
+      if (!isUsageReport(out) || out.tenantId !== tenantId) throw new AiServiceError("unreachable", 200, "unexpected_response");
+      return out;
+    },
+    async latestEvals() {
+      const out = await call("GET", "/v1/admin/evals");
+      if (!isEvalRuns(out)) throw new AiServiceError("unreachable", 200, "unexpected_response");
+      return out.runs;
     },
   };
 }
