@@ -14,6 +14,7 @@ import { runSetupWizard } from "../src/setup-wizard";
 import { createCommsDefaults } from "../src/comms-defaults";
 import { createSuccessDefaults } from "../src/success-defaults";
 import { seedConcepts } from "./academic";
+import { demoMastery, type DemoMasteryRow, seedMasteryDemo, seedMasteryDemoUrl } from "./mastery";
 import { type SeedStudent, seedSuccessDemo, seedSuccessDemoEnabled } from "./success";
 import { pick, prng, seedId, seedToken } from "./deterministic";
 import { COUNTS, DEMO_EMAIL_DOMAIN, NO_ROLE_EMAIL, TENANTS, type TenantFixture, tenantDefaultLocale } from "./fixtures";
@@ -344,10 +345,12 @@ async function seedTenant(
     guardianships: guardianships.length,
     academic,
     success,
+    mastery: demoMastery(f.countryCode, seedStudents),
   };
 }
 
 export async function seed(client: PrismaClient): Promise<void> {
+  const mastery: { tenantId: string; rows: DemoMasteryRow[] }[] = [];
   // Passwords live in Supabase Auth: run `pnpm auth:seed` after this to create
   // the demo logins there and link user_account.external_auth_id.
   await client.$transaction(
@@ -355,6 +358,7 @@ export async function seed(client: PrismaClient): Promise<void> {
       const roleIds = await seedGlobals(tx);
       for (const f of TENANTS) {
         const r = await seedTenant(tx, f, roleIds);
+        mastery.push({ tenantId: r.tenantId, rows: r.mastery });
         console.info(
           `Seeded ${f.name} (${r.tenantId}): ${r.persons} persons, ${r.assignments} role assignments, ${r.guardianships} guardianships, ` +
             `academic year ${r.academic.academicYearName}: ${JSON.stringify(r.academic.totals)}, ` +
@@ -375,6 +379,13 @@ export async function seed(client: PrismaClient): Promise<void> {
     },
     { timeout: 120_000 },
   );
+  // Synthetic tutor mastery lives in sso-ai's own database: written only for demos that
+  // name it (SSOS_SEED_SUCCESS_DEMO=1 + SSOS_SEED_AI_DATABASE_URL).
+  const aiUrl = seedMasteryDemoUrl();
+  if (aiUrl) {
+    const n = await seedMasteryDemo(aiUrl, mastery);
+    console.info(`Seeded demo mastery into sso-ai: ${n} mastery_state rows`);
+  }
 }
 
 const client = createAdminClient();

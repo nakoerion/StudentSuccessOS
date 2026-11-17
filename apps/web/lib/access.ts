@@ -42,6 +42,14 @@ export function canUseTutor(viewer: Viewer): boolean {
   return viewer.permissions.has("tutor.use");
 }
 
+/**
+ * The mastery heatmap shows many students' learning data at once: it needs `mastery.read`
+ * (seeded for advisor and admin), and `roster.read` because it lists the class roster.
+ */
+export function canViewMastery(viewer: Viewer): boolean {
+  return viewer.permissions.has("mastery.read") && viewer.permissions.has("roster.read");
+}
+
 export function rosterScope(viewer: Viewer): RosterScope {
   if (viewer.permissions.has("roster.read")) return { kind: "all" };
   if (viewer.permissions.has("guardianship.read_own")) {

@@ -21,11 +21,12 @@ export const PERMISSIONS = [
   { key: "consent.manage_own", description: "Give or revoke consent for self or own children" },
   { key: "audit.read", description: "Read the audit log" },
   { key: "tutor.use", description: "Use the AI tutor for own learning" },
+  { key: "mastery.read", description: "View concept mastery across students (advisor heatmap)" },
 ] as const;
 
 export const ROLE_PERMISSIONS: Record<SystemRoleKey, readonly (typeof PERMISSIONS)[number]["key"][]> = {
-  admin: ["tenant.manage", "roster.read", "roster.write", "roster.import", "invitation.manage", "audit.read"],
-  advisor: ["roster.read"],
+  admin: ["tenant.manage", "roster.read", "roster.write", "roster.import", "invitation.manage", "audit.read", "mastery.read"],
+  advisor: ["roster.read", "mastery.read"],
   teacher: ["roster.read"],
   trainer: ["roster.read"],
   parent: ["guardianship.read_own", "consent.manage_own"],
