@@ -79,7 +79,8 @@
     "switchSchool": "Switch school",
     "inbox": "Action inbox",
     "tutor": "Tutor",
-    "mastery": "Mastery"
+    "mastery": "Mastery",
+    "aiUsage": "AI usage"
   },
   "dashboard": {
     "welcome": "Welcome, {name}",
@@ -415,6 +416,71 @@
       "developing": "40–59%",
       "secure": "60–79%",
       "strong": "80% and above"
+    }
+  },
+  "aiUsage": {
+    "title": "AI usage and quality",
+    "subtitle": "This school's AI spend this month against its budget, and how the evaluation suite is scoring.",
+    "unavailable": {
+      "title": "AI service unavailable",
+      "body": "Usage figures can't be loaded right now. Try again shortly."
+    },
+    "nominal": {
+      "title": "Nominal figures — no live AI model yet",
+      "body": "Every AI answer this month came from the built-in test model, not a paid provider. The spend shown is list-price arithmetic over test traffic; no money has been charged."
+    },
+    "pools": {
+      "title": "Spend against budget",
+      "month": "This month so far ({date}, UTC)",
+      "ofCap": "of {cap}",
+      "used": "{pct} used",
+      "warningLine": "Warning at {pct}",
+      "remaining": "{amount} remaining",
+      "calls": "{count, plural, one {# call} other {# calls}}",
+      "discretionary": {
+        "name": "Discretionary",
+        "body": "Tutoring, matching, essay coaching, practice and copilot. Stops at 100%; admins are warned at 80%."
+      },
+      "essential": {
+        "name": "Essential",
+        "body": "Classification, extraction, translation and summaries — risk explanations, parent messages and translations. Never switched off by a tutor overrun."
+      }
+    },
+    "state": {
+      "ok": "Within budget",
+      "warning": "Past the 80% warning",
+      "exhausted": "Budget reached — stopped",
+      "exhaustedEssential": "Over budget — still running"
+    },
+    "derivation": {
+      "title": "How the budget was worked out",
+      "perSeat": "{seats} students × {perSeat} = {cap} a month (floor {floor}).",
+      "floorBelow": "{floor} floor — {seats} students × {perSeat} comes to less.",
+      "floorNoSeats": "{floor} floor — no seat count reported.",
+      "explicit": "{cap} a month — set explicitly for this school.",
+      "essentialShare": "Essential pool: {share} of that, {cap}.",
+      "essentialFloor": "Essential pool: {floor} floor.",
+      "essentialExplicit": "Essential pool: {cap} — set explicitly for this school.",
+      "noSeatsWhy": "Student counts are not yet sent to the AI service, so the per-student budget ($0.10 per student a month) cannot apply yet."
+    },
+    "evals": {
+      "title": "Evaluation quality",
+      "subtitle": "The latest run of each evaluation suite. A run without a live AI model checks the plumbing only and says nothing about answer quality.",
+      "suite": "Suite",
+      "ran": "Ran",
+      "cases": "Cases",
+      "result": "Result",
+      "notMeasured": "Not measured (no live model)",
+      "plumbing": "Plumbing: {passed} of {cases} checks passed",
+      "passed": "{passed} of {cases} cases passed",
+      "quality": "Quality {pct}",
+      "qualityBelow": "Quality {pct} — below baseline",
+      "partial": "Quality {pct} — partly measured ({count} live cases)",
+      "unavailable": "Evaluation results can't be loaded right now.",
+      "empty": {
+        "title": "No evaluation runs yet",
+        "body": "Results appear here after the evaluation suite has run."
+      }
     }
   }
 }

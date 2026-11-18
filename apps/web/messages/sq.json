@@ -79,7 +79,8 @@
     "switchSchool": "Ndrysho shkollën",
     "inbox": "Kutia e veprimeve",
     "tutor": "Tutori",
-    "mastery": "Zotërimi"
+    "mastery": "Zotërimi",
+    "aiUsage": "Përdorimi i AI"
   },
   "dashboard": {
     "welcome": "Mirë se vini, {name}",
@@ -415,6 +416,71 @@
       "developing": "40–59%",
       "secure": "60–79%",
       "strong": "80% e lart"
+    }
+  },
+  "aiUsage": {
+    "title": "Përdorimi dhe cilësia e AI",
+    "subtitle": "Shpenzimi i AI i shkollës këtë muaj kundrejt buxhetit, dhe si po vlerësohet suita e testimit.",
+    "unavailable": {
+      "title": "Shërbimi i AI nuk është i disponueshëm",
+      "body": "Shifrat e përdorimit nuk mund të ngarkohen tani. Provoni përsëri pas pak."
+    },
+    "nominal": {
+      "title": "Shifra nominale — ende pa model AI të vërtetë",
+      "body": "Çdo përgjigje e AI këtë muaj erdhi nga modeli i integruar i testimit, jo nga një ofrues me pagesë. Shpenzimi i treguar është llogaritje me çmime liste mbi trafikun e testimit; nuk është paguar asnjë para."
+    },
+    "pools": {
+      "title": "Shpenzimi kundrejt buxhetit",
+      "month": "Ky muaj deri tani ({date}, UTC)",
+      "ofCap": "nga {cap}",
+      "used": "{pct} e përdorur",
+      "warningLine": "Paralajmërim në {pct}",
+      "remaining": "{amount} të mbetura",
+      "calls": "{count, plural, one {# thirrje} other {# thirrje}}",
+      "discretionary": {
+        "name": "Diskrecionale",
+        "body": "Tutorimi, përputhja, ndihma për ese, ushtrimet dhe kopiloti. Ndalon në 100%; administratorët paralajmërohen në 80%."
+      },
+      "essential": {
+        "name": "Thelbësore",
+        "body": "Klasifikimi, nxjerrja e të dhënave, përkthimi dhe përmbledhjet — shpjegimet e rrezikut, mesazhet për prindërit dhe përkthimet. Nuk fiket kurrë nga tejkalimi i tutorit."
+      }
+    },
+    "state": {
+      "ok": "Brenda buxhetit",
+      "warning": "Mbi paralajmërimin 80%",
+      "exhausted": "Buxheti u arrit — ndaluar",
+      "exhaustedEssential": "Mbi buxhet — vazhdon të punojë"
+    },
+    "derivation": {
+      "title": "Si u llogarit buxheti",
+      "perSeat": "{seats} nxënës × {perSeat} = {cap} në muaj (minimumi {floor}).",
+      "floorBelow": "Minimumi {floor} — {seats} nxënës × {perSeat} del më pak.",
+      "floorNoSeats": "Minimumi {floor} — nuk është raportuar numri i nxënësve.",
+      "explicit": "{cap} në muaj — vendosur posaçërisht për këtë shkollë.",
+      "essentialShare": "Fondi thelbësor: {share} e kësaj, {cap}.",
+      "essentialFloor": "Fondi thelbësor: minimumi {floor}.",
+      "essentialExplicit": "Fondi thelbësor: {cap} — vendosur posaçërisht për këtë shkollë.",
+      "noSeatsWhy": "Numri i nxënësve ende nuk i dërgohet shërbimit të AI, ndaj buxheti për nxënës (0,10 $ për nxënës në muaj) nuk mund të zbatohet ende."
+    },
+    "evals": {
+      "title": "Cilësia e vlerësimit",
+      "subtitle": "Ekzekutimi i fundit i çdo suite vlerësimi. Një ekzekutim pa model AI të vërtetë kontrollon vetëm infrastrukturën dhe nuk thotë asgjë për cilësinë e përgjigjeve.",
+      "suite": "Suita",
+      "ran": "Ekzekutuar",
+      "cases": "Raste",
+      "result": "Rezultati",
+      "notMeasured": "Pa matje (asnjë model i vërtetë)",
+      "plumbing": "Infrastruktura: {passed} nga {cases} kontrolle kaluan",
+      "passed": "{passed} nga {cases} raste kaluan",
+      "quality": "Cilësia {pct}",
+      "qualityBelow": "Cilësia {pct} — nën bazën",
+      "partial": "Cilësia {pct} — matur pjesërisht ({count} raste të vërteta)",
+      "unavailable": "Rezultatet e vlerësimit nuk mund të ngarkohen tani.",
+      "empty": {
+        "title": "Ende asnjë ekzekutim vlerësimi",
+        "body": "Rezultatet shfaqen këtu pasi të jetë ekzekutuar suita e vlerësimit."
+      }
     }
   }
 }

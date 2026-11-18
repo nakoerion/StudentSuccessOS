@@ -13,6 +13,7 @@
     "db:migrate": "dotenv -e ../../.env -- prisma migrate deploy",
     "db:migrate:status": "dotenv -e ../../.env -- prisma migrate status",
     "db:seed": "dotenv -e ../../.env -- tsx seed/index.ts",
+    "db:seed:roles": "dotenv -e ../../.env -- tsx seed/roles.ts",
     "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force --skip-seed && pnpm db:seed",
     "auth:seed": "dotenv -e ../../.env -- tsx scripts/seed-supabase-auth.ts",
     "rls:generate": "tsx rls/generate.ts",

@@ -1,12 +1,24 @@
 "use client";
 
 import { cn } from "@ssos/ui";
-import { Grid3x3, GraduationCap, Inbox, LayoutDashboard, Users } from "lucide-react";
+import { Gauge, Grid3x3, GraduationCap, Inbox, LayoutDashboard, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-export function TenantNav({ slug, showInbox = false, showTutor = false, showMastery = false }: { slug: string; showInbox?: boolean; showTutor?: boolean; showMastery?: boolean }) {
+export function TenantNav({
+  slug,
+  showInbox = false,
+  showTutor = false,
+  showMastery = false,
+  showAiUsage = false,
+}: {
+  slug: string;
+  showInbox?: boolean;
+  showTutor?: boolean;
+  showMastery?: boolean;
+  showAiUsage?: boolean;
+}) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const base = `/t/${slug}`;
@@ -21,6 +33,7 @@ export function TenantNav({ slug, showInbox = false, showTutor = false, showMast
     ...(showInbox ? [{ href: `${base}/inbox`, label: t("inbox"), icon: Inbox, active: pathname.startsWith(`${base}/inbox`) }] : []),
     ...(showMastery ? [{ href: `${base}/mastery`, label: t("mastery"), icon: Grid3x3, active: pathname.startsWith(`${base}/mastery`) }] : []),
     ...(showTutor ? [{ href: `${base}/tutor`, label: t("tutor"), icon: GraduationCap, active: pathname.startsWith(`${base}/tutor`) }] : []),
+    ...(showAiUsage ? [{ href: `${base}/ai-usage`, label: t("aiUsage"), icon: Gauge, active: pathname.startsWith(`${base}/ai-usage`) }] : []),
   ];
   return (
     <nav className="flex items-center gap-1" aria-label={t("dashboard")}>
