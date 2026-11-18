@@ -455,13 +455,13 @@
     "derivation": {
       "title": "Si u llogarit buxheti",
       "perSeat": "{seats} nxënës × {perSeat} = {cap} në muaj (minimumi {floor}).",
-      "floorBelow": "Minimumi {floor} — {seats} nxënës × {perSeat} del më pak.",
+      "floorBelow": "{seats} nxënës × {perSeat} = {computed} në muaj, më pak se minimumi {floor}, ndaj zbatohet minimumi.",
       "floorNoSeats": "Minimumi {floor} — nuk është raportuar numri i nxënësve.",
       "explicit": "{cap} në muaj — vendosur posaçërisht për këtë shkollë.",
       "essentialShare": "Fondi thelbësor: {share} e kësaj, {cap}.",
       "essentialFloor": "Fondi thelbësor: minimumi {floor}.",
       "essentialExplicit": "Fondi thelbësor: {cap} — vendosur posaçërisht për këtë shkollë.",
-      "noSeatsWhy": "Numri i nxënësve ende nuk i dërgohet shërbimit të AI, ndaj buxheti për nxënës (0,10 $ për nxënës në muaj) nuk mund të zbatohet ende."
+      "noSeatsWhy": "Për këtë shkollë ende nuk i është raportuar shërbimit të AI numri i nxënësve, ndaj buxheti për nxënës (0,10 $ për nxënës në muaj) nuk mund të zbatohet ende."
     },
     "evals": {
       "title": "Cilësia e vlerësimit",
