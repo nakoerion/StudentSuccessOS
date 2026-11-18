@@ -139,7 +139,9 @@ describe("cap derivation line", () => {
     expect(capLine(report().derivation.discretionary)).toEqual({ key: "derivation.floorNoSeats", values: { floor: 50 } });
   });
   it("seats below the floor, seats above it, and explicit caps", () => {
-    expect(capLine({ basis: "floor", capUsd: 50, seatCount: 300, perSeatUsd: 0.1, floorUsd: 50 }).key).toBe("derivation.floorBelow");
+    expect(capLine({ basis: "floor", capUsd: 50, seatCount: 130, perSeatUsd: 0.1, floorUsd: 50 })).toEqual({
+      key: "derivation.floorBelow", values: { seats: 130, perSeat: 0.1, computed: 13, floor: 50 },
+    });
     expect(capLine({ basis: "per_seat", capUsd: 120, seatCount: 1200, perSeatUsd: 0.1, floorUsd: 50 })).toEqual({
       key: "derivation.perSeat", values: { seats: 1200, perSeat: 0.1, floor: 50, cap: 120 },
     });

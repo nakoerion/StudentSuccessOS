@@ -17,6 +17,7 @@
     "db:seed": "pnpm --filter @ssos/db db:seed",
     "db:reset": "pnpm --filter @ssos/db db:reset",
     "auth:seed": "pnpm --filter @ssos/db auth:seed",
+    "ai:sync-seats": "pnpm --filter @ssos/jobs ai:sync-seats",
     "rls:generate": "pnpm --filter @ssos/db rls:generate"
   },
   "devDependencies": {

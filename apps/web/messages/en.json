@@ -455,13 +455,13 @@
     "derivation": {
       "title": "How the budget was worked out",
       "perSeat": "{seats} students × {perSeat} = {cap} a month (floor {floor}).",
-      "floorBelow": "{floor} floor — {seats} students × {perSeat} comes to less.",
+      "floorBelow": "{seats} students × {perSeat} = {computed} a month, which is below the {floor} floor, so the floor applies.",
       "floorNoSeats": "{floor} floor — no seat count reported.",
       "explicit": "{cap} a month — set explicitly for this school.",
       "essentialShare": "Essential pool: {share} of that, {cap}.",
       "essentialFloor": "Essential pool: {floor} floor.",
       "essentialExplicit": "Essential pool: {cap} — set explicitly for this school.",
-      "noSeatsWhy": "Student counts are not yet sent to the AI service, so the per-student budget ($0.10 per student a month) cannot apply yet."
+      "noSeatsWhy": "No student count has been reported to the AI service for this school yet, so the per-student budget ($0.10 per student a month) cannot apply yet."
     },
     "evals": {
       "title": "Evaluation quality",

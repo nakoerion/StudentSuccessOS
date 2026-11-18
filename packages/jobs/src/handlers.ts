@@ -29,6 +29,7 @@ import {
   type StudentEventPayload,
   type TenantJobPayload,
 } from "./events";
+import { formatSeatSyncLine, type PushSeats, syncSeatCounts } from "./seats";
 
 export interface JobDeps {
   /** OWNER client (DATABASE_ADMIN_URL): risk_score and risk_model_config are engine-owned.
@@ -45,6 +46,10 @@ export interface JobDeps {
   relayBatchSize?: number;
   /** Clock; also the data cut-off (`asOf`) of the recomputes. Default: wall clock. */
   now?: () => Date;
+  /** Seat-count push to sso-ai, run by the nightly job. Absent (no SSO_AI_URL/token) → not run. */
+  pushSeats?: PushSeats;
+  /** Where the nightly seat sync reports. Default: console. */
+  log?: (line: string) => void;
 }
 
 function isClient(db: JobDeps["db"]): db is PrismaClient {
@@ -131,11 +136,25 @@ export function createHandlers(deps: JobDeps) {
     }
   }
 
-  /** Nightly: one recompute-tenant job per tenant with an active risk model. */
-  async function nightly(): Promise<{ tenants: number }> {
+  /**
+   * Nightly: one recompute-tenant job per tenant with an active risk model, then the seat-count
+   * sync to sso-ai. The sync never fails the nightly job: a failure is logged and sso-ai keeps
+   * its previous value.
+   */
+  async function nightly(): Promise<{ tenants: number; seats?: { synced: number; failed: number } | { error: string } }> {
     const rows = await db.riskModelConfig.findMany({ where: { isActive: true }, select: { tenantId: true }, orderBy: { tenantId: "asc" } });
     for (const r of rows) await deps.send(QUEUES.recomputeTenant, { tenantId: r.tenantId } satisfies TenantJobPayload);
-    return { tenants: rows.length };
+    if (!deps.pushSeats) return { tenants: rows.length };
+    const log = deps.log ?? ((l: string) => console.info(l));
+    try {
+      const s = await syncSeatCounts(db, deps.pushSeats);
+      for (const l of s.lines) log(`[jobs] seats ${formatSeatSyncLine(l)}`);
+      return { tenants: rows.length, seats: { synced: s.synced, failed: s.failed } };
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e);
+      log(`[jobs] seat sync failed: ${error}`);
+      return { tenants: rows.length, seats: { error } };
+    }
   }
 
   /**

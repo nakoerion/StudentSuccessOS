@@ -36,8 +36,13 @@ export function capLine(d: DiscretionaryDerivation): { key: string; values: Reco
       // An unknown seat count must read as "no seat count reported", never as a measured number.
       return d.seatCount === null
         ? { key: "derivation.floorNoSeats", values: { floor: d.floorUsd } }
-        : { key: "derivation.floorBelow", values: { seats: d.seatCount, perSeat: d.perSeatUsd, floor: d.floorUsd } };
+        : { key: "derivation.floorBelow", values: { seats: d.seatCount, perSeat: d.perSeatUsd, computed: perSeatTotal(d.seatCount, d.perSeatUsd), floor: d.floorUsd } };
   }
+}
+
+/** seats × per-seat price in whole cents (no float drift: 130 × $0.10 is exactly $13.00). */
+export function perSeatTotal(seats: number, perSeatUsd: number): number {
+  return (seats * Math.round(perSeatUsd * 100)) / 100;
 }
 
 export function essentialLine(d: EssentialDerivation): { key: string; values: Record<string, number> } {

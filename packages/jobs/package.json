@@ -8,6 +8,7 @@
   },
   "scripts": {
     "worker": "dotenv -e ../../.env -- tsx src/worker.ts",
+    "ai:sync-seats": "dotenv -e ../../.env -- tsx src/sync-seats-cli.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
