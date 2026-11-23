@@ -12,11 +12,12 @@ import {
   TabsNav,
   TabsNavItem,
 } from "@ssos/ui";
-import { Search } from "lucide-react";
+import { Search, SearchX, UserPlus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { StatePanel } from "../../../../components/page";
 import { canViewSuccess, rosterScope } from "../../../../lib/access";
 import { listRoster, parseRosterFilter, type RosterFilter } from "../../../../lib/roster";
 import { requireTenant } from "../../../../lib/session";
@@ -112,6 +113,21 @@ export default async function PeoplePage({ params, searchParams }: { params: Par
         </form>
       </div>
 
+      {rows.length === 0 ? (
+        <StatePanel
+          testId={q ? "people-no-match" : "people-empty"}
+          icon={q ? <SearchX className="size-5" aria-hidden /> : <UserPlus className="size-5" aria-hidden />}
+          title={q ? t("empty") : t("emptyTitle")}
+          body={q ? t("noMatchBody") : t("emptyBody")}
+          action={
+            q ? (
+              <Button asChild variant="outline">
+                <Link href={hrefFor(filter)}>{t("clear")}</Link>
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
       <Card className="overflow-hidden">
         <Table data-testid="people-table">
           <TableHeader>
@@ -125,14 +141,7 @@ export default async function PeoplePage({ params, searchParams }: { params: Par
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                  {t("empty")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((p) => (
+            {rows.map((p) => (
                 <TableRow key={p.id} data-testid="person-row">
                   <TableCell className="font-medium">
                     {showProfiles && p.roles.includes("student") ? (
@@ -179,11 +188,11 @@ export default async function PeoplePage({ params, searchParams }: { params: Par
                     {p.externalRef ?? t("none")}
                   </TableCell>
                 </TableRow>
-              ))
-            )}
+            ))}
           </TableBody>
         </Table>
       </Card>
+      )}
       <p className="text-sm text-muted-foreground" data-testid="people-count">
         {t("count", { count: rows.length })}
       </p>

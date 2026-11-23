@@ -1,16 +1,21 @@
-import { Badge } from "@ssos/ui";
-import { ArrowLeftRight } from "lucide-react";
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
-import { BrandMark } from "../../../components/brand";
+import { AppShell, type NavKey } from "../../../components/app-shell";
 import { LocaleSwitcher, ThemeToggle } from "../../../components/preferences";
 import { currentTheme } from "../../../components/shell";
 import { SignOutButton } from "../../../components/sign-out-button";
-import { TenantNav } from "../../../components/tenant-nav";
-import { canUseTutor, canViewAiUsage, canViewMastery, canViewSuccess } from "../../../lib/access";
+import { canUseTutor, canViewAiUsage, canViewMastery, canViewSuccess, rosterScope } from "../../../lib/access";
 import { getMemberships, requireTenant } from "../../../lib/session";
+
+/** Country display name from the ISO code, in the viewer's language (data, not a branch). */
+function countryName(code: string, locale: string): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: "region" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
 
 export default async function TenantLayout({
   children,
@@ -20,57 +25,37 @@ export default async function TenantLayout({
   params: Promise<{ tenantSlug: string }>;
 }) {
   const { tenantSlug } = await params;
-  const { user, membership, viewer } = await requireTenant(tenantSlug);
+  const { user, membership, viewer, db } = await requireTenant(tenantSlug);
   const t = await getTranslations();
+  const locale = await getLocale();
   const theme = await currentTheme();
-  const showInbox = canViewSuccess(viewer);
-  const showTutor = canUseTutor(viewer);
-  const showMastery = canViewMastery(viewer);
-  const showAiUsage = canViewAiUsage(viewer);
   const schoolCount = (await getMemberships(user.id)).filter((m) => m.activeRoles.length > 0).length;
+  const person = await db((tx) => tx.person.findUnique({ where: { id: viewer.personId }, select: { displayName: true } }));
+
+  // Role-aware nav: only what the viewer can open. Every page re-checks on the server.
+  const nav: NavKey[] = ["dashboard"];
+  if (rosterScope(viewer).kind !== "none") nav.push("people");
+  if (canViewSuccess(viewer)) nav.push("inbox");
+  if (canViewMastery(viewer)) nav.push("mastery");
+  if (canUseTutor(viewer)) nav.push("tutor");
+  if (canViewAiUsage(viewer)) nav.push("aiUsage");
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/85 backdrop-blur supports-[backdrop-filter]:bg-surface/70">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
-          <Link href={`/t/${tenantSlug}`} className="flex min-w-0 items-center gap-3">
-            <BrandMark />
-            <span className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate text-sm font-semibold" data-testid="school-name">
-                {membership.name}
-              </span>
-              <span className="truncate text-xs text-muted-foreground">{t("common.appName")}</span>
-            </span>
-          </Link>
-          <div className="hidden md:block">
-            <TenantNav slug={tenantSlug} showInbox={showInbox} showTutor={showTutor} showMastery={showMastery} showAiUsage={showAiUsage} />
-          </div>
-          <div className="ms-auto flex items-center gap-2">
-            <div className="hidden items-center gap-1 sm:flex" data-testid="user-roles">
-              {viewer.roles.map((r) => (
-                <Badge key={r}>{t(`roles.${r}`)}</Badge>
-              ))}
-            </div>
-            {schoolCount > 1 ? (
-              <Link
-                href="/schools"
-                title={t("nav.switchSchool")}
-                aria-label={t("nav.switchSchool")}
-                className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-              >
-                <ArrowLeftRight className="size-4" aria-hidden />
-              </Link>
-            ) : null}
-            <LocaleSwitcher />
-            <ThemeToggle initial={theme} />
-            <SignOutButton compact />
-          </div>
-        </div>
-        <div className="border-t border-border px-4 py-1.5 md:hidden">
-          <TenantNav slug={tenantSlug} showInbox={showInbox} showTutor={showTutor} showMastery={showMastery} showAiUsage={showAiUsage} />
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
-    </div>
+    <AppShell
+      slug={tenantSlug}
+      school={{ name: membership.name, country: countryName(membership.countryCode, locale) }}
+      person={{ name: person?.displayName ?? user.email ?? "", roles: viewer.roles.map((r) => t(`roles.${r}`)) }}
+      nav={nav}
+      canSwitchSchool={schoolCount > 1}
+      controls={
+        <>
+          <LocaleSwitcher />
+          <ThemeToggle initial={theme} />
+          <SignOutButton compact />
+        </>
+      }
+    >
+      {children}
+    </AppShell>
   );
 }

@@ -147,3 +147,48 @@
     outline-offset: 2px;
   }
 }
+
+/*
+ * Status vocabulary (good / watch / at-risk / neutral) — aliases of the semantic colours,
+ * so every status surface (risk band, pool state, mastery) speaks the same four words.
+ */
+@theme inline {
+  --color-status-good: var(--success);
+  --color-status-good-subtle: var(--success-subtle);
+  --color-status-watch: var(--warn);
+  --color-status-watch-subtle: var(--warn-subtle);
+  --color-status-risk: var(--danger);
+  --color-status-risk-subtle: var(--danger-subtle);
+  --color-status-neutral: var(--muted-foreground);
+  --color-status-neutral-subtle: var(--muted);
+}
+
+/* Undo-window countdown: the bar empties toward the inline start (mirrors in RTL). */
+@keyframes ssos-countdown {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+.ssos-countdown {
+  animation: ssos-countdown var(--ssos-countdown, 8s) linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ssos-countdown {
+    animation: none;
+  }
+}
+
+/* Loading skeleton shimmer. */
+@keyframes ssos-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+.ssos-skeleton {
+  border-radius: var(--radius-md);
+  background: var(--muted);
+  animation: ssos-pulse 1.6s ease-in-out infinite;
+}

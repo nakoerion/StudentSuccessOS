@@ -102,7 +102,11 @@
     "myChildren": "Fëmijët e mi",
     "myChildrenSubtitle": "Nxënësit e lidhur me llogarinë tuaj.",
     "noChildren": "Ende nuk ka nxënës të lidhur me llogarinë tuaj.",
-    "noAccess": "Roli juaj ende nuk ka qasje te regjistri i shkollës."
+    "noAccess": "Roli juaj ende nuk ka qasje te regjistri i shkollës.",
+    "emptyTitle": "Askush nuk është bashkuar ende",
+    "emptyBody": "Nxënësit, mësuesit dhe prindërit shfaqen këtu sapo të shtohen në shkollë.",
+    "noChildrenTitle": "Asnjë nxënës i lidhur",
+    "noAccessTitle": "Ende asgjë për të shfaqur"
   },
   "people": {
     "title": "Njerëzit",
@@ -128,7 +132,10 @@
     },
     "count": "{count, plural, =0 {Asnjë person} one {# person} other {# persona}}",
     "empty": "Askush nuk përputhet me kërkimin tuaj.",
-    "none": "—"
+    "none": "—",
+    "noMatchBody": "Provoni një emër ose ID tjetër, ose pastroni kërkimin.",
+    "emptyTitle": "Ende askush në këtë listë",
+    "emptyBody": "Personat shfaqen këtu sapo të shtohen në shkollë."
   },
   "errors": {
     "notFoundTitle": "Faqja nuk u gjet",
@@ -235,7 +242,7 @@
       "cancel": "Anulo",
       "approve": "Mirato",
       "dismiss": "Hidh poshtë",
-      "dismissReason": "Arsyeja (opsionale)",
+      "dismissReason": "Pse e hidhni poshtë?",
       "dismissConfirm": "Hidh poshtë kartën",
       "readOnly": "Vetëm roli {role} ose një administrator mund ta vendosë këtë kartë.",
       "decidedDismissed": "Karta për {student} u hodh poshtë.",
@@ -246,6 +253,50 @@
         "effectiveDate": "Data e fillimit",
         "reviewDate": "Data e rishikimit",
         "submit": "Mirato me ndryshime"
+      },
+      "progress": "{decided} nga {total} të vendosura",
+      "progressLabel": "Vendime të marra",
+      "caughtUp": {
+        "title": "Gjithçka është në rregull.",
+        "body": "Sot asgjë nuk pret vendim."
+      },
+      "showEvidence": "Provat",
+      "hideEvidence": "Fshih provat",
+      "dismissReasons": {
+        "already_supported": "Ka tashmë mbështetje",
+        "data_incorrect": "Të dhënat duken gabim",
+        "not_now": "Nuk është momenti",
+        "other": "Arsye tjetër"
+      },
+      "shortcuts": {
+        "title": "Shkurtore",
+        "move": "Karta tjetër / e mëparshme",
+        "approve": "Mirato",
+        "edit": "Ndrysho",
+        "dismiss": "Hidh poshtë",
+        "select": "Zgjidh për disa njëherësh",
+        "expand": "Shfaq provat",
+        "close": "Mbyll / pastro",
+        "help": "Shfaq këtë listë"
+      },
+      "bulk": {
+        "select": "Zgjidh {student}",
+        "selectHint": "Zgjidh për të vendosur së bashku",
+        "selected": "{count, plural, one {# kartë e zgjedhur} other {# karta të zgjedhura}} · propozim {track}",
+        "reviewDate": "Data e rishikimit (opsionale)",
+        "decide": "Vendos {count}…",
+        "statement": "Kalo {count, plural, one {# nxënës} other {# nxënës}} në {track}, me datat e rishikimit siç janë propozuar.",
+        "statementReview": "Kalo {count, plural, one {# nxënës} other {# nxënës}} në {track}, rishikim më {date}.",
+        "confirm": "Konfirmo",
+        "clear": "Pastro zgjedhjen"
+      },
+      "toast": {
+        "track": "{outcome, select, edited {Miratuar me ndryshime} other {Miratuar}}: {student} → {track}",
+        "dismissed": "Karta për {student} u hodh poshtë",
+        "bulk": "{count} nxënës → {track}",
+        "undo": "Zhbëj",
+        "saveNow": "Ruaj tani",
+        "failed": "{count, plural, one {Një vendim nuk u ruajt} other {# vendime nuk u ruajtën}}. Karta u kthye me arsyen; shënimi juaj ruhet."
       }
     },
     "risk": {
@@ -282,7 +333,17 @@
       "trackBadge": "Drejtimi: {track}",
       "noTrack": "Pa drejtim ende",
       "openCards": "Karta veprimi të hapura",
-      "noOpenCards": "Asnjë kartë veprimi e hapur për këtë nxënës."
+      "noOpenCards": "Asnjë kartë veprimi e hapur për këtë nxënës.",
+      "tabs": {
+        "overview": "Përmbledhje",
+        "risk": "Rreziku",
+        "tracks": "Historiku i drejtimit",
+        "alerts": "Sinjalizime"
+      },
+      "decideNext": "Vendos kartën e hapur",
+      "viewRisk": "Shiko shpjegimin e rrezikut",
+      "openAlerts": "{count, plural, one {# sinjalizim i hapur} other {# sinjalizime të hapura}}",
+      "noRisk": "Ende pa vlerësim rreziku"
     },
     "trackHistory": {
       "title": "Historiku i drejtimeve",
@@ -416,6 +477,10 @@
       "developing": "40–59%",
       "secure": "60–79%",
       "strong": "80% e lart"
+    },
+    "legend2": {
+      "title": "Si të lexoni ngjyrat",
+      "body": "Çdo qelizë është gjasa e vlerësuar që nxënësi e zotëron konceptin. Një qelizë me vija do të thotë që nxënësi nuk e ka provuar ende — kjo nuk është e njëjtë me një rezultat të ulët dhe nuk llogaritet në mesataren e klasës."
     }
   },
   "aiUsage": {
@@ -481,6 +546,28 @@
         "title": "Ende asnjë ekzekutim vlerësimi",
         "body": "Rezultatet shfaqen këtu pasi të jetë ekzekutuar suita e vlerësimit."
       }
+    },
+    "plain": {
+      "spent": "Shpenzuar këtë muaj",
+      "cap": "Kufiri mujor",
+      "left": "Mbetur",
+      "howWorkedOut": "Si llogaritet kufiri"
+    }
+  },
+  "shell": {
+    "mainNav": "Navigimi kryesor",
+    "breadcrumb": "Vendndodhja",
+    "openMenu": "Hap menunë",
+    "closeMenu": "Mbyll menunë",
+    "collapseSidebar": "Palos shiritin anësor",
+    "expandSidebar": "Hap shiritin anësor",
+    "crumbs": {
+      "student": "Profili i nxënësit"
+    },
+    "error": {
+      "title": "Kjo faqe nuk u ngarkua",
+      "body": "Asgjë nga ato që shkruat nuk humbi. Provoni përsëri; nëse vazhdon, ringarkoni faqen ose kthehuni pas pak minutash.",
+      "retry": "Provo përsëri"
     }
   }
 }

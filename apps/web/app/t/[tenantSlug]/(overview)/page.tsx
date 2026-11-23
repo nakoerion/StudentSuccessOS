@@ -1,12 +1,13 @@
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ssos/ui";
-import { ArrowRight, BookOpen, Clock, GraduationCap, LayoutGrid, Users } from "lucide-react";
+import { ArrowRight, BookOpen, Clock, GraduationCap, LayoutGrid, Lock, UserPlus, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { rosterScope } from "../../../lib/access";
-import { dashboardCounts, listRoster, pendingClaimsCount } from "../../../lib/roster";
-import { requireTenant } from "../../../lib/session";
+import { StatePanel } from "../../../../components/page";
+import { rosterScope } from "../../../../lib/access";
+import { dashboardCounts, listRoster, pendingClaimsCount } from "../../../../lib/roster";
+import { requireTenant } from "../../../../lib/session";
 
 type Params = Promise<{ tenantSlug: string }>;
 
@@ -37,6 +38,7 @@ export default async function DashboardPage({ params }: { params: Params }) {
     pending: canManage ? await pendingClaimsCount(tx) : 0,
   }));
   const counts = data.counts;
+  const schoolEmpty = counts !== null && counts.students + counts.teachers + counts.parents === 0;
   const firstName = (user.name ?? user.email).split(" ")[0];
 
   return (
@@ -93,6 +95,15 @@ export default async function DashboardPage({ params }: { params: Params }) {
         </section>
       ) : null}
 
+      {schoolEmpty ? (
+        <StatePanel
+          testId="dashboard-empty"
+          icon={<UserPlus className="size-5" aria-hidden />}
+          title={t("emptyTitle")}
+          body={t("emptyBody")}
+        />
+      ) : null}
+
       {scope.kind === "own_children" ? (
         <section className="flex flex-col gap-3" data-testid="my-children">
           <div>
@@ -100,7 +111,12 @@ export default async function DashboardPage({ params }: { params: Params }) {
             <p className="text-sm text-muted-foreground">{t("myChildrenSubtitle")}</p>
           </div>
           {data.children.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("noChildren")}</p>
+            <StatePanel
+              testId="dashboard-no-children"
+              icon={<Users className="size-5" aria-hidden />}
+              title={t("noChildrenTitle")}
+              body={t("noChildren")}
+            />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {data.children.map((c) => (
@@ -131,9 +147,12 @@ export default async function DashboardPage({ params }: { params: Params }) {
       ) : null}
 
       {scope.kind === "none" ? (
-        <Card>
-          <CardContent className="pt-5 text-sm text-muted-foreground">{t("noAccess")}</CardContent>
-        </Card>
+        <StatePanel
+          testId="dashboard-no-access"
+          icon={<Lock className="size-5" aria-hidden />}
+          title={t("noAccessTitle")}
+          body={t("noAccess")}
+        />
       ) : null}
     </div>
   );

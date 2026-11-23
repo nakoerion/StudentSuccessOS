@@ -4,6 +4,8 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import { MasteryClassPicker } from "../../../../components/mastery-class-picker";
+import { MasteryHeatmap } from "../../../../components/mastery-heatmap";
+import { PageHeader, StatePanel } from "../../../../components/page";
 import { canViewMastery } from "../../../../lib/access";
 import { AiServiceError, createAiClient, type MasteryResult } from "../../../../lib/ai/client";
 import {
@@ -14,9 +16,9 @@ import {
   loadMasteryClasses,
   MASTERY_LEVELS,
   masteryLevel,
-  type MasteryLevel,
   summarizeConcepts,
 } from "../../../../lib/ai/mastery";
+import { LEVEL_CLASS, NO_DATA_CLASS } from "../../../../lib/ai/mastery-style";
 import { requireTenant } from "../../../../lib/session";
 
 type Params = Promise<{ tenantSlug: string }>;
@@ -24,13 +26,6 @@ type SearchParams = Promise<{ class?: string | string[] }>;
 
 export const dynamic = "force-dynamic";
 
-const LEVEL_CLASS: Record<MasteryLevel, string> = {
-  low: "bg-rose-600 text-white",
-  developing: "bg-amber-400 text-amber-950",
-  secure: "bg-lime-400 text-lime-950",
-  strong: "bg-emerald-600 text-white",
-};
-const NO_DATA_CLASS = "border border-dashed border-border bg-transparent text-muted-foreground";
 /** How many of the weakest concepts the class summary names. */
 const SUMMARY_SIZE = 5;
 
@@ -40,14 +35,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return { title: `${t("title")} · ${membership.name}` };
 }
 
-function Panel({ testId, title, body }: { testId: string; title: string; body: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface p-6" data-testid={testId}>
-      <p className="font-medium">{title}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{body}</p>
-    </div>
-  );
-}
+const Panel = StatePanel;
 
 export default async function MasteryPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   const { tenantSlug } = await params;
@@ -64,12 +52,7 @@ export default async function MasteryPage({ params, searchParams }: { params: Pa
 
   const header = (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl" data-testid="mastery-title">
-          {t("title")}
-        </h1>
-        <p className="mt-1 max-w-3xl text-muted-foreground">{t("subtitle")}</p>
-      </div>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} testId="mastery-title" />
       {selected ? <MasteryClassPicker classes={classes} selected={selected.id} /> : null}
     </div>
   );
@@ -138,78 +121,48 @@ export default async function MasteryPage({ params, searchParams }: { params: Pa
           </section>
 
           <section className="flex flex-col gap-3" data-testid="mastery-grid">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">{t("grid.title")}</h2>
-              <ul className="flex flex-wrap items-center gap-3 text-xs" aria-label={t("legend.title")}>
-                {MASTERY_LEVELS.map((l) => (
-                  <li key={l} className="flex items-center gap-1.5">
-                    <span className={`inline-block size-3 rounded-sm ${LEVEL_CLASS[l]}`} aria-hidden />
-                    {t(`levels.${l}`)}
-                  </li>
-                ))}
-                <li className="flex items-center gap-1.5">
-                  <span className={`inline-block size-3 rounded-sm ${NO_DATA_CLASS}`} aria-hidden />
+            <h2 className="text-lg font-semibold">{t("grid.title")}</h2>
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 sm:flex-row sm:items-start sm:gap-6" data-testid="mastery-legend">
+              <div className="sm:max-w-sm">
+                <p className="text-sm font-medium">{t("legend2.title")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t("legend2.body")}</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <ol className="flex overflow-hidden rounded-md text-xs" aria-label={t("legend.title")}>
+                  {MASTERY_LEVELS.map((l) => (
+                    <li key={l} className={`px-3 py-1.5 font-medium ${LEVEL_CLASS[l]}`}>
+                      {t(`levels.${l}`)}
+                    </li>
+                  ))}
+                </ol>
+                <p className="flex items-center gap-2 text-xs">
+                  <span className={`inline-block h-5 w-10 rounded-sm ${NO_DATA_CLASS}`} aria-hidden />
                   {t("legend.noData")}
-                </li>
-              </ul>
+                </p>
+              </div>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-              <table className="w-full border-separate border-spacing-1 text-sm">
-                <thead>
-                  <tr>
-                    <th scope="col" className="px-2 py-2 text-start font-medium text-muted-foreground">
-                      {t("grid.student")}
-                    </th>
-                    {grid.concepts.map((code) => (
-                      <th key={code} scope="col" className="min-w-24 px-2 py-2 text-center align-bottom font-medium" title={code}>
-                        <span className="block">{label(code)}</span>
-                        <bdi dir="ltr" className="block text-[11px] font-normal text-muted-foreground">
-                          {code}
-                        </bdi>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {grid.rows.map((row) => {
-                    const name = studentName.get(row.studentId) ?? "";
-                    return (
-                      <tr key={row.studentId} data-testid="mastery-row">
-                        <th scope="row" className="whitespace-nowrap px-2 py-1 text-start font-normal">
-                          {name}
-                        </th>
-                        {grid.concepts.map((code) => {
-                          const c = row.cells[code];
-                          if (!c) {
-                            const title = t("grid.noDataTitle", { student: name, concept: label(code) });
-                            return (
-                              <td key={code} className={`rounded-md px-2 py-1.5 text-center ${NO_DATA_CLASS}`} title={title} data-testid="mastery-cell-empty">
-                                <span className="block text-xs">{t("grid.noData")}</span>
-                                <span className="sr-only">{title}</span>
-                              </td>
-                            );
-                          }
-                          const title = t("grid.cellTitle", {
-                            student: name,
-                            concept: label(code),
-                            value: pct(c.pMastery),
-                            correct: c.correct,
-                            attempts: c.attempts,
-                          });
-                          return (
-                            <td key={code} className={`rounded-md px-2 py-1.5 text-center ${LEVEL_CLASS[masteryLevel(c.pMastery)]}`} title={title} data-testid="mastery-cell">
-                              <span className="block font-semibold tabular-nums">{pct(c.pMastery)}</span>
-                              <span className="block text-[11px] opacity-90">{t("grid.attempts", { count: c.attempts })}</span>
-                              <span className="sr-only">{title}</span>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <MasteryHeatmap
+              studentLabel={t("grid.student")}
+              noDataLabel={t("grid.noData")}
+              concepts={grid.concepts.map((code) => ({ code, label: label(code) }))}
+              rows={grid.rows.map((row) => {
+                const name = studentName.get(row.studentId) ?? "";
+                return {
+                  id: row.studentId,
+                  name,
+                  cells: grid.concepts.map((code) => {
+                    const c = row.cells[code];
+                    if (!c) return { noDataTitle: t("grid.noDataTitle", { student: name, concept: label(code) }) };
+                    return {
+                      value: pct(c.pMastery),
+                      attempts: t("grid.attempts", { count: c.attempts }),
+                      level: masteryLevel(c.pMastery),
+                      title: t("grid.cellTitle", { student: name, concept: label(code), value: pct(c.pMastery), correct: c.correct, attempts: c.attempts }),
+                    };
+                  }),
+                };
+              })}
+            />
             <p className="text-xs text-muted-foreground">
               {unassessed > 0 ? `${t("grid.unassessed", { count: unassessed })} ` : ""}
               {t("grid.note")}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { ActionInbox } from "../../../../components/action-inbox";
+import { PageHeader } from "../../../../components/page";
 import { canViewSuccess } from "../../../../lib/access";
 import { requireTenant } from "../../../../lib/session";
 import { loadInboxCards, makeDateFormatters, tenantTimeZone } from "../../../../lib/success";
@@ -29,16 +30,8 @@ export default async function InboxPage({ params }: { params: Params }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl" data-testid="inbox-title">
-          {t("title")}
-        </h1>
-        <p className="mt-1 text-muted-foreground">{t("subtitle")}</p>
-        <p className="mt-1 text-sm text-muted-foreground" data-testid="inbox-count">
-          {t("count", { count: cards.length })}
-        </p>
-      </div>
-      <ActionInbox tenantSlug={tenantSlug} cards={cards} />
+      <PageHeader title={t("title")} subtitle={t("subtitle")} testId="inbox-title" />
+      <ActionInbox tenantSlug={tenantSlug} cards={cards} keyboard />
     </div>
   );
 }
