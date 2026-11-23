@@ -75,6 +75,18 @@ test("switching to Arabic sets dir=rtl and persists", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 });
 
+test("signed out: / is the public landing page; signed in: / goes to the school", async ({ page }) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("landing")).toBeVisible();
+  await expect(page.getByTestId("landing-demo")).toHaveAttribute("href", "/sign-in");
+  await expect(page.getByTestId("landing-join")).toHaveAttribute("href", "/join");
+  await expect(page.getByTestId("landing-demo-note")).toBeVisible();
+  await signIn(page, "admin.abudhabi@demo.ssos.test");
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/t\/demo-school-abu-dhabi$/);
+});
+
 test("no session -> sign-in; other tenant's slug -> 404", async ({ page }) => {
   await page.goto("/t/liceu-demo-tirane");
   await expect(page).toHaveURL(/\/sign-in/);

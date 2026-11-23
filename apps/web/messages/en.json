@@ -569,5 +569,95 @@
       "body": "Nothing you entered was lost. Try again; if it keeps happening, reload the page or come back in a few minutes.",
       "retry": "Try again"
     }
+  },
+  "landing": {
+    "signIn": "Sign in",
+    "hero": {
+      "eyebrow": "For secondary schools in Albania and the UAE",
+      "title": "See which students need help, and why, before the term is over.",
+      "subtitle": "Attendance, grades and an AI tutor in one place, so advisors act on evidence and every decision stays with a person.",
+      "ctaDemo": "See a demo school",
+      "ctaJoin": "Join your school",
+      "coverage": "Albania and the UAE · Albanian, English and Arabic, with full right-to-left",
+      "imageAlt": "A teacher and a student working together at a laptop"
+    },
+    "proof": {
+      "kicker": "Concept mastery",
+      "title": "Know what a class has actually mastered",
+      "body": "Advisors see a class's weakest concepts first, with the class average and how many students were assessed, above a grid of every student and every concept. Mastery is estimated from students' practice with the tutor.",
+      "noData": "A concept nobody has attempted shows as “no data”, not zero. An untried topic and a failed one mean opposite things about a child.",
+      "alt": "Screenshot of the mastery heatmap for a demo class, including cells marked no data",
+      "caption": "A real screen from the demo school. Students and figures are synthetic."
+    },
+    "values": {
+      "title": "One record, three people who need it",
+      "advisor": {
+        "role": "For the advisor",
+        "title": "Every student who needs a decision",
+        "body": "The action inbox lists each student whose risk has changed, with the factors behind it. A student's support track does not change until a person approves the card, and the database itself refuses anything else.",
+        "alt": "Screenshot of the action inbox in the demo school"
+      },
+      "student": {
+        "role": "For the student",
+        "title": "A tutor that helps, in their own language",
+        "body": "Six ways to be helped, guiding questions by default, in Albanian, English or Arabic. When the school's AI budget for the month is spent, the tutor says so plainly. It never switches quietly to a weaker answer."
+      },
+      "head": {
+        "role": "For the head teacher",
+        "title": "AI usage and quality, in plain figures",
+        "body": "What was spent this month, against which cap, how that cap was worked out, and whether answer quality was actually measured. Without a live model the page says “not measured” instead of showing a pass.",
+        "items": [
+          "Spend per pool against its cap",
+          "A warning to the school admin at 80%",
+          "Evaluation runs, with plumbing and answer quality reported separately"
+        ]
+      }
+    },
+    "countries": {
+      "title": "Built for two countries",
+      "body": "Country differences live in data packs, not in separate products. Each pack carries the grade structure, grading scale, school calendar, consent ages and default language.",
+      "al": {
+        "name": "Albania",
+        "items": [
+          "Two semesters, ending with the State Matura in grade 12",
+          "Marks from 4 to 10, with 5 as the pass mark",
+          "Guardian consent for online services below age 16",
+          "Albanian by default, English available"
+        ]
+      },
+      "ae": {
+        "name": "United Arab Emirates",
+        "items": [
+          "Three terms on the Ministry of Education calendar",
+          "A 0–100 percentage scale as the starting default",
+          "Guardian consent below age 16",
+          "Arabic by default, English available"
+        ]
+      },
+      "confirm": "Some settings, such as semester dates, grade cut-offs and consent rules, are researched starting points, not settled law. Each school confirms them for itself before relying on them.",
+      "pricing": "Subscribed per school. Pricing on request."
+    },
+    "safety": {
+      "title": "Safeguarding and privacy, built in",
+      "isolation": {
+        "title": "Each school's data is separated in the database itself",
+        "body": "Row-level security in Postgres keeps one school's records invisible to every other school, underneath the application code."
+      },
+      "disclosure": {
+        "title": "Disclosures go to a person",
+        "body": "If a student writes about self-harm or abuse, the message is routed to a human with no AI model involved, even when the school has switched AI off."
+      },
+      "images": {
+        "title": "No images to a model",
+        "body": "Personal details are removed before any text reaches an AI provider. Image upload in the tutor is switched off, because that filter cannot see inside a picture."
+      },
+      "budget": {
+        "title": "AI spend has a hard stop",
+        "body": "Tutoring stops at the school's monthly limit, with a warning at 80%. Translations, summaries and risk explanations draw on a separate allowance, so a busy tutor never switches them off."
+      }
+    },
+    "footer": {
+      "demo": "This is a demo, not a live service. It runs on the team's own computer with two synthetic schools, and every AI answer comes from a test stand-in because no AI provider is connected yet."
+    }
   }
 }
