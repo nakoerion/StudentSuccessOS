@@ -594,7 +594,7 @@
       "advisor": {
         "role": "Për këshilltarin",
         "title": "Çdo nxënës që pret një vendim",
-        "body": "Kutia e veprimeve rendit çdo nxënës, rreziku i të cilit ka ndryshuar, bashkë me faktorët që e shpjegojnë. Rruga e mbështetjes së nxënësit nuk ndryshon derisa një njeri ta miratojë kartën, dhe vetë baza e të dhënave nuk lejon ndryshe.",
+        "body": "Kutia e veprimeve mban çdo propozim që motori i suksesit bën për një nxënës, me pikët e rrezikut dhe provat pas tyre. Rruga e mbështetjes së nxënësit nuk ndryshon derisa një njeri ta miratojë, ndryshojë ose hedhë poshtë kartën, dhe vetë baza e të dhënave nuk lejon ndryshe.",
         "alt": "Pamje e kutisë së veprimeve në shkollën demo"
       },
       "student": {

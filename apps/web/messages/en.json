@@ -594,7 +594,7 @@
       "advisor": {
         "role": "For the advisor",
         "title": "Every student who needs a decision",
-        "body": "The action inbox lists each student whose risk has changed, with the factors behind it. A student's support track does not change until a person approves the card, and the database itself refuses anything else.",
+        "body": "The action inbox holds every proposal the success engine makes for a student, with the risk score and the evidence behind it. A student's support track does not change until a person approves, edits or dismisses the card, and the database itself refuses anything else.",
         "alt": "Screenshot of the action inbox in the demo school"
       },
       "student": {

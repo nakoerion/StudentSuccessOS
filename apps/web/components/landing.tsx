@@ -124,7 +124,7 @@ export async function LandingPage({ locale }: { locale: Locale }) {
             </p>
           </div>
           <figure className="flex flex-col gap-2">
-            <Screen src={`/landing/mastery-${locale}.png`} alt={t("proof.alt")} width={1400} height={1000} />
+            <Screen src={`/landing/mastery-${locale}.jpg`} alt={t("proof.alt")} width={1400} height={1000} />
             <figcaption className="text-xs text-[#5a6b80]">{t("proof.caption")}</figcaption>
           </figure>
         </div>
@@ -139,7 +139,7 @@ export async function LandingPage({ locale }: { locale: Locale }) {
             <h3 className="text-2xl font-semibold">{t("values.advisor.title")}</h3>
             <p className="text-[#22344d]">{t("values.advisor.body")}</p>
           </div>
-          <Screen src={`/landing/inbox-${locale}.png`} alt={t("values.advisor.alt")} width={1400} height={900} />
+          <Screen src={`/landing/inbox-${locale}.jpg`} alt={t("values.advisor.alt")} width={1400} height={900} />
         </div>
         <div className="mt-14 grid gap-6 md:grid-cols-2">
           <div className="flex flex-col gap-3 rounded-2xl border border-[#e6dcc8] bg-white p-6">
