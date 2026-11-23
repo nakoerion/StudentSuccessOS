@@ -29,9 +29,12 @@ async function signIn(page: Page, email: string) {
 
 test("advisor approves, edits and dismisses cards; the profile shows the new track", async ({ page }) => {
   await signIn(page, "advisor.tirane@demo.ssos.test");
-  await page.getByTestId("nav-inbox").first().click();
+  // The sidebar renders both the icon rail and the full list; only one is visible per breakpoint.
+  await page.getByTestId("nav-inbox").filter({ visible: true }).first().click();
   await expect(page).toHaveURL(new RegExp(`/t/${SLUG}/inbox$`));
   const cards = page.getByTestId("action-card");
+  // The URL changes before the inbox has rendered; count only once the cards are on screen.
+  await expect(cards.first()).toBeVisible();
   const initial = await cards.count();
   expect(initial).toBeGreaterThanOrEqual(3);
 
@@ -112,6 +115,7 @@ test("advisor approves, edits and dismisses cards; the profile shows the new tra
   // Dismissed student: no track change.
   await page.goto(`/t/${SLUG}/students/${dismissedStudent}`);
   await expect(page.getByTestId("current-track")).toHaveAttribute("data-track", "none");
+  await page.getByTestId("profile-tab-tracks").click();
   await expect(page.getByTestId("track-history-empty")).toBeVisible();
 });
 
