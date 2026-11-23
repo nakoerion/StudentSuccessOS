@@ -102,7 +102,11 @@
     "myChildren": "My children",
     "myChildrenSubtitle": "Students linked to your account.",
     "noChildren": "No students are linked to your account yet.",
-    "noAccess": "Your role doesn't include access to the school roster yet."
+    "noAccess": "Your role doesn't include access to the school roster yet.",
+    "emptyTitle": "No one has joined yet",
+    "emptyBody": "Students, teachers and parents appear here once they are added to the school.",
+    "noChildrenTitle": "No linked students",
+    "noAccessTitle": "Nothing to show yet"
   },
   "people": {
     "title": "People",
@@ -128,7 +132,10 @@
     },
     "count": "{count, plural, =0 {No people} one {# person} other {# people}}",
     "empty": "No one matches your search.",
-    "none": "—"
+    "none": "—",
+    "noMatchBody": "Try a different name or ID, or clear the search.",
+    "emptyTitle": "No one in this list yet",
+    "emptyBody": "People appear here once they are added to the school."
   },
   "errors": {
     "notFoundTitle": "Page not found",

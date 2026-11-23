@@ -102,7 +102,11 @@
     "myChildren": "Fëmijët e mi",
     "myChildrenSubtitle": "Nxënësit e lidhur me llogarinë tuaj.",
     "noChildren": "Ende nuk ka nxënës të lidhur me llogarinë tuaj.",
-    "noAccess": "Roli juaj ende nuk ka qasje te regjistri i shkollës."
+    "noAccess": "Roli juaj ende nuk ka qasje te regjistri i shkollës.",
+    "emptyTitle": "Askush nuk është bashkuar ende",
+    "emptyBody": "Nxënësit, mësuesit dhe prindërit shfaqen këtu sapo të shtohen në shkollë.",
+    "noChildrenTitle": "Asnjë nxënës i lidhur",
+    "noAccessTitle": "Ende asgjë për të shfaqur"
   },
   "people": {
     "title": "Njerëzit",
@@ -128,7 +132,10 @@
     },
     "count": "{count, plural, =0 {Asnjë person} one {# person} other {# persona}}",
     "empty": "Askush nuk përputhet me kërkimin tuaj.",
-    "none": "—"
+    "none": "—",
+    "noMatchBody": "Provoni një emër ose ID tjetër, ose pastroni kërkimin.",
+    "emptyTitle": "Ende askush në këtë listë",
+    "emptyBody": "Personat shfaqen këtu sapo të shtohen në shkollë."
   },
   "errors": {
     "notFoundTitle": "Faqja nuk u gjet",
