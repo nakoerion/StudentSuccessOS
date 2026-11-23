@@ -20,6 +20,7 @@ import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
 import { ActionInbox } from "../../../../../components/action-inbox";
+import { ProfileTabs } from "../../../../../components/profile-tabs";
 import { canViewSuccess } from "../../../../../lib/access";
 import { requireTenant } from "../../../../../lib/session";
 import {
@@ -83,41 +84,17 @@ export default async function StudentProfilePage({ params }: { params: Params })
   };
   const ruleLabel = (a: AlertRow) => ((KNOWN_ALERT_RULES as readonly string[]).includes(a.ruleKey) ? t(`alertRules.${a.ruleKey}`) : a.ruleName);
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <Link href={`/t/${tenantSlug}/people?role=student`} className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden />
-          {t("profile.back")}
-        </Link>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl" data-testid="student-name">
-            {header.name}
-          </h1>
-          {activeTrack ? (
-            <Badge variant={TRACK_VARIANT[activeTrack.track]} data-testid="current-track" data-track={activeTrack.track}>
-              {t("profile.trackBadge", { track: t(`tracks.${activeTrack.track}`) })}
-            </Badge>
-          ) : (
-            <Badge variant="neutral" data-testid="current-track" data-track="none">
-              {t("profile.noTrack")}
-            </Badge>
-          )}
-        </div>
-        <p className="text-muted-foreground">
-          {header.units.join(", ") || t("none")}
-          {header.externalRef ? (
-            <>
-              {" · "}
-              <span className="font-mono text-xs" dir="ltr">
-                {header.externalRef}
-              </span>
-            </>
-          ) : null}
-        </p>
-      </div>
+  const openAlerts = alerts.filter((a) => a.state === "open" || a.state === "escalated").length;
+  const decidable = cards.some((c) => c.canDecide);
+  const nextAction = decidable
+    ? { tab: "overview" as const, anchor: "open-cards", label: t("profile.decideNext") }
+    : openAlerts > 0
+      ? { tab: "alerts" as const, label: t("profile.openAlerts", { count: openAlerts }) }
+      : risk
+        ? { tab: "risk" as const, label: t("profile.viewRisk") }
+        : null;
 
-      {/* Risk explanation */}
+  const riskPanel = (
       <Card data-testid="risk-panel">
         <CardHeader>
           <CardTitle>{t("risk.title")}</CardTitle>
@@ -226,14 +203,9 @@ export default async function StudentProfilePage({ params }: { params: Params })
           )}
         </CardContent>
       </Card>
+  );
 
-      {/* Open action cards about this student */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">{t("profile.openCards")}</h2>
-        <ActionInbox tenantSlug={tenantSlug} cards={cards} showStudentLink={false} emptyLabel={t("profile.noOpenCards")} />
-      </section>
-
-      {/* Track history */}
+  const trackHistory = (
       <Card className="overflow-hidden" data-testid="track-history">
         <CardHeader>
           <CardTitle>{t("trackHistory.title")}</CardTitle>
@@ -279,8 +251,9 @@ export default async function StudentProfilePage({ params }: { params: Params })
           </TableBody>
         </Table>
       </Card>
+  );
 
-      {/* Alerts */}
+  const alertsList = (
       <Card className="overflow-hidden" data-testid="alerts-list">
         <CardHeader>
           <CardTitle>{t("alerts.title")}</CardTitle>
@@ -346,6 +319,67 @@ export default async function StudentProfilePage({ params }: { params: Params })
           </TableBody>
         </Table>
       </Card>
+  );
+
+  const headerNode = (
+    <div className="flex flex-col gap-1">
+      <Link href={`/t/${tenantSlug}/people?role=student`} className="inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="size-3.5 rtl:rotate-180" aria-hidden />
+        {t("profile.back")}
+      </Link>
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl" data-testid="student-name">
+          {header.name}
+        </h1>
+        {risk ? (
+          <Badge variant={BAND_VARIANT[risk.band]} data-testid="header-risk" data-band={risk.band}>
+            {t("risk.bandLabel", { band: t(`bands.${risk.band}`) })} · <span className="tabular-nums">{pts(risk.score)}</span>
+          </Badge>
+        ) : (
+          <Badge variant="neutral" data-testid="header-risk" data-band="none">
+            {t("profile.noRisk")}
+          </Badge>
+        )}
+        {activeTrack ? (
+          <Badge variant={TRACK_VARIANT[activeTrack.track]} data-testid="current-track" data-track={activeTrack.track}>
+            {t("profile.trackBadge", { track: t(`tracks.${activeTrack.track}`) })}
+          </Badge>
+        ) : (
+          <Badge variant="neutral" data-testid="current-track" data-track="none">
+            {t("profile.noTrack")}
+          </Badge>
+        )}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {header.units.join(", ") || t("none")}
+        {header.externalRef ? (
+          <>
+            {" · "}
+            <span className="font-mono text-xs" dir="ltr">
+              {header.externalRef}
+            </span>
+          </>
+        ) : null}
+      </p>
     </div>
+  );
+
+  return (
+    <ProfileTabs
+      header={headerNode}
+      nextAction={nextAction}
+      counts={{ overview: cards.length, alerts: openAlerts }}
+      panels={{
+        overview: (
+          <section id="open-cards" className="flex scroll-mt-48 flex-col gap-3">
+            <h2 className="text-lg font-semibold">{t("profile.openCards")}</h2>
+            <ActionInbox tenantSlug={tenantSlug} cards={cards} showStudentLink={false} emptyLabel={t("profile.noOpenCards")} />
+          </section>
+        ),
+        risk: riskPanel,
+        tracks: trackHistory,
+        alerts: alertsList,
+      }}
+    />
   );
 }

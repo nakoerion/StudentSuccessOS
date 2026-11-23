@@ -235,7 +235,7 @@
       "cancel": "Cancel",
       "approve": "Approve",
       "dismiss": "Dismiss",
-      "dismissReason": "Reason (optional)",
+      "dismissReason": "Why dismiss?",
       "dismissConfirm": "Dismiss card",
       "readOnly": "Only a {role} or an admin can decide this card.",
       "decidedDismissed": "Dismissed the card for {student}.",
@@ -246,6 +246,50 @@
         "effectiveDate": "Effective date",
         "reviewDate": "Review date",
         "submit": "Approve with edits"
+      },
+      "progress": "{decided} of {total} decided",
+      "progressLabel": "Decisions made",
+      "caughtUp": {
+        "title": "You're all caught up.",
+        "body": "Nothing needs a decision today."
+      },
+      "showEvidence": "Evidence",
+      "hideEvidence": "Hide evidence",
+      "dismissReasons": {
+        "already_supported": "Already supported",
+        "data_incorrect": "Data looks wrong",
+        "not_now": "Not the right time",
+        "other": "Other reason"
+      },
+      "shortcuts": {
+        "title": "Shortcuts",
+        "move": "Next / previous card",
+        "approve": "Approve",
+        "edit": "Edit",
+        "dismiss": "Dismiss",
+        "select": "Select for bulk",
+        "expand": "Show evidence",
+        "close": "Close / clear",
+        "help": "Show this list"
+      },
+      "bulk": {
+        "select": "Select {student}",
+        "selectHint": "Select to decide together",
+        "selected": "{count, plural, one {# card} other {# cards}} selected · proposing {track}",
+        "reviewDate": "Review date (optional)",
+        "decide": "Decide {count}…",
+        "statement": "Set {count, plural, one {# student} other {# students}} to {track}, review dates as proposed.",
+        "statementReview": "Set {count, plural, one {# student} other {# students}} to {track}, review {date}.",
+        "confirm": "Confirm",
+        "clear": "Clear selection"
+      },
+      "toast": {
+        "track": "{outcome, select, edited {Approved with edits} other {Approved}}: {student} → {track}",
+        "dismissed": "Dismissed the card for {student}",
+        "bulk": "{count} students → {track}",
+        "undo": "Undo",
+        "saveNow": "Save now",
+        "failed": "{count, plural, one {A decision wasn't saved} other {# decisions weren't saved}}. The card is back with the reason; your note is kept."
       }
     },
     "risk": {
@@ -282,7 +326,17 @@
       "trackBadge": "{track} track",
       "noTrack": "No track yet",
       "openCards": "Open action cards",
-      "noOpenCards": "No open action cards for this student."
+      "noOpenCards": "No open action cards for this student.",
+      "tabs": {
+        "overview": "Overview",
+        "risk": "Risk",
+        "tracks": "Track history",
+        "alerts": "Alerts"
+      },
+      "decideNext": "Decide the open card",
+      "viewRisk": "See risk explanation",
+      "openAlerts": "{count, plural, one {# open alert} other {# open alerts}}",
+      "noRisk": "No risk score yet"
     },
     "trackHistory": {
       "title": "Track history",
@@ -416,6 +470,10 @@
       "developing": "40–59%",
       "secure": "60–79%",
       "strong": "80% and above"
+    },
+    "legend2": {
+      "title": "How to read the colours",
+      "body": "Each cell is the estimated chance the student has mastered the concept. A dashed cell means the student hasn't attempted it yet — that is not the same as a low score, and it is left out of the class average."
     }
   },
   "aiUsage": {
@@ -481,6 +539,28 @@
         "title": "No evaluation runs yet",
         "body": "Results appear here after the evaluation suite has run."
       }
+    },
+    "plain": {
+      "spent": "Spent this month",
+      "cap": "Monthly allowance",
+      "left": "Left",
+      "howWorkedOut": "How the allowance is worked out"
+    }
+  },
+  "shell": {
+    "mainNav": "Main navigation",
+    "breadcrumb": "Breadcrumb",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "crumbs": {
+      "student": "Student profile"
+    },
+    "error": {
+      "title": "This page couldn't load",
+      "body": "Nothing you entered was lost. Try again; if it keeps happening, reload the page or come back in a few minutes.",
+      "retry": "Try again"
     }
   }
 }

@@ -35,21 +35,40 @@ test("advisor approves, edits and dismisses cards; the profile shows the new tra
   const initial = await cards.count();
   expect(initial).toBeGreaterThanOrEqual(3);
 
-  // Evidence panel: score, band, up to 4 factors; confidence shown.
+  // Evidence: score and band on the card; factors and cohort comparison expand in place.
   const first = cards.first();
   await expect(first.getByTestId("evidence-score")).toBeVisible();
+  await first.getByTestId("card-expand").click();
+  await expect(first.getByTestId("evidence-panel")).toBeVisible();
   await expect(first.getByTestId("evidence-band")).toHaveAttribute("data-band", /^(low|moderate|high|critical)$/);
   const factorCount = await first.getByTestId("evidence-factor").count();
   expect(factorCount).toBeGreaterThan(0);
   expect(factorCount).toBeLessThanOrEqual(4);
   await expect(first.getByTestId("card-confidence")).toHaveAttribute("data-level", /^(high|medium|low)$/);
 
-  // 1) Approve.
+  // 0) Undo: the card leaves at once, Undo brings it back and nothing is sent.
+  const undoneId = (await first.getAttribute("data-card-id"))!;
+  await first.getByTestId("card-approve").click();
+  await expect(cards).toHaveCount(initial - 1);
+  await expect(page.getByTestId("undo-toast")).toBeVisible();
+  await expect(page.getByTestId("inbox-count")).toHaveAttribute("data-decided", "1");
+  await page.getByTestId("toast-undo").click();
+  await expect(cards).toHaveCount(initial);
+  await expect(page.locator(`[data-card-id="${undoneId}"]`)).toBeVisible();
+  await expect(page.getByTestId("inbox-count")).toHaveAttribute("data-decided", "0");
+  await page.waitForTimeout(9_000);
+  await expect(page.getByTestId("inbox-decided")).toHaveCount(0);
+  await expect(cards).toHaveCount(initial);
+
+  // 1) Approve (keyboard: j focuses the first card, a approves it); saved after the undo window.
   const approvedStudent = (await first.getAttribute("data-student-id"))!;
   const approvedTrack = (await first.getByTestId("card-proposed-track").getAttribute("data-track"))!;
-  await first.getByTestId("card-approve").click();
-  await expect(page.getByTestId("inbox-decided").first()).toHaveAttribute("data-outcome", "approved");
+  await page.locator("body").click({ position: { x: 1, y: 1 } });
+  await page.keyboard.press("j");
+  await page.keyboard.press("a");
   await expect(cards).toHaveCount(initial - 1);
+  await expect(page.getByTestId("undo-toast").first()).toHaveAttribute("data-outcome", "approved");
+  await expect(page.getByTestId("inbox-decided").first()).toHaveAttribute("data-outcome", "approved", { timeout: 15_000 });
 
   // 2) Edit: change the review date, approve with edits.
   const second = cards.first();
@@ -58,18 +77,22 @@ test("advisor approves, edits and dismisses cards; the profile shows the new tra
   await second.getByTestId("edit-review").fill("2027-01-15");
   await second.getByTestId("edit-note").fill("Review after winter break");
   await second.getByTestId("edit-submit").click();
-  await expect(page.getByTestId("inbox-decided").first()).toHaveAttribute("data-outcome", "edited");
+  await page.getByTestId("toast-save-now").last().click();
+  await expect(page.getByTestId("inbox-decided").first()).toHaveAttribute("data-outcome", "edited", { timeout: 15_000 });
   await expect(cards).toHaveCount(initial - 2);
 
   // 3) Dismiss with a reason.
   const third = cards.first();
   const dismissedStudent = (await third.getAttribute("data-student-id"))!;
   await third.getByTestId("card-dismiss").click();
-  await third.getByTestId("dismiss-note").fill("Known situation, already supported");
+  await expect(third.getByTestId("dismiss-submit")).toBeDisabled();
+  await third.getByTestId("dismiss-reason-already_supported").check({ force: true });
+  await third.getByTestId("dismiss-note").fill("Known situation");
   await third.getByTestId("dismiss-submit").click();
-  await expect(page.getByTestId("inbox-decided").first()).toHaveAttribute("data-outcome", "dismissed");
+  await page.getByTestId("toast-save-now").last().click();
+  await expect(page.getByTestId("inbox-decided").first()).toHaveAttribute("data-outcome", "dismissed", { timeout: 15_000 });
   await expect(cards).toHaveCount(initial - 3);
-  await expect(page.getByTestId("inbox-count")).toContainText(String(initial - 3));
+  await expect(page.getByTestId("inbox-count")).toHaveAttribute("data-decided", "3");
 
   // Approved student's profile: new active track, history row, full risk explanation.
   await page.goto(`/t/${SLUG}/students/${approvedStudent}`);
