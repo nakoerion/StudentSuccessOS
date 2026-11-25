@@ -569,5 +569,95 @@
       "body": "Asgjë nga ato që shkruat nuk humbi. Provoni përsëri; nëse vazhdon, ringarkoni faqen ose kthehuni pas pak minutash.",
       "retry": "Provo përsëri"
     }
+  },
+  "landing": {
+    "signIn": "Hyr",
+    "hero": {
+      "eyebrow": "Për shkollat e mesme në Shqipëri dhe në Emiratet e Bashkuara Arabe",
+      "title": "Shihni cilët nxënës kanë nevojë për ndihmë, dhe pse, para se të mbarojë semestri.",
+      "subtitle": "Mungesat, notat dhe një tutor me AI në një vend të vetëm: këshilltari vepron mbi prova, ndërsa çdo vendim e merr një njeri.",
+      "ctaDemo": "Shikoni një shkollë demo",
+      "ctaJoin": "Bashkohuni me shkollën tuaj",
+      "coverage": "Shqipëri dhe EBA · shqip, anglisht dhe arabisht, me shkrim të plotë nga e djathta në të majtë",
+      "imageAlt": "Një mësuese dhe një nxënës duke punuar së bashku në laptop"
+    },
+    "proof": {
+      "kicker": "Zotërimi i koncepteve",
+      "title": "Dini çfarë ka zotëruar vërtet një klasë",
+      "body": "Këshilltari sheh së pari konceptet më të dobëta të klasës, me mesataren e klasës dhe sa nxënës janë vlerësuar, mbi një tabelë me çdo nxënës dhe çdo koncept. Zotërimi vlerësohet nga ushtrimet e nxënësve me tutorin.",
+      "noData": "Një koncept që askush nuk e ka provuar shfaqet si “pa të dhëna”, jo si zero. Një temë e paprovuar dhe një temë e dështuar thonë gjëra krejt të kundërta për një fëmijë.",
+      "alt": "Pamje e tabelës së zotërimit për një klasë demo, me qeliza të shënuara pa të dhëna",
+      "caption": "Ekran i vërtetë nga shkolla demo. Nxënësit dhe shifrat janë fiktive."
+    },
+    "values": {
+      "title": "Një regjistër, tre njerëz që kanë nevojë për të",
+      "advisor": {
+        "role": "Për këshilltarin",
+        "title": "Çdo nxënës që pret një vendim",
+        "body": "Kutia e veprimeve mban çdo propozim që motori i suksesit bën për një nxënës, me pikët e rrezikut dhe provat pas tyre. Rruga e mbështetjes së nxënësit nuk ndryshon derisa një njeri ta miratojë, ndryshojë ose hedhë poshtë kartën, dhe vetë baza e të dhënave nuk lejon ndryshe.",
+        "alt": "Pamje e kutisë së veprimeve në shkollën demo"
+      },
+      "student": {
+        "role": "Për nxënësin",
+        "title": "Një tutor që ndihmon, në gjuhën e vet",
+        "body": "Gjashtë mënyra ndihme, me pyetje udhëzuese si parazgjedhje, në shqip, anglisht ose arabisht. Kur buxheti mujor i AI-së së shkollës mbaron, tutori e thotë troç. Nuk kalon kurrë fshehurazi te një përgjigje më e dobët."
+      },
+      "head": {
+        "role": "Për drejtorin",
+        "title": "Përdorimi dhe cilësia e AI-së, në shifra të qarta",
+        "body": "Sa u shpenzua këtë muaj, kundrejt cilit kufi, si u llogarit ai kufi dhe nëse cilësia e përgjigjeve u mat vërtet. Pa një model të vërtetë, faqja shkruan “e pamatur” në vend që të tregojë sukses.",
+        "items": [
+          "Shpenzimi i çdo fondi kundrejt kufirit të tij",
+          "Paralajmërim për administratorin e shkollës në 80%",
+          "Testet e vlerësimit, me funksionimin teknik dhe cilësinë e përgjigjeve veçmas"
+        ]
+      }
+    },
+    "countries": {
+      "title": "Ndërtuar për dy vende",
+      "body": "Dallimet mes vendeve jetojnë te paketat e të dhënave, jo në produkte të ndara. Çdo paketë mban strukturën e klasave, shkallën e notave, kalendarin shkollor, moshat e pëlqimit dhe gjuhën parazgjedhur.",
+      "al": {
+        "name": "Shqipëria",
+        "items": [
+          "Dy semestra, që përmbyllen me Maturën Shtetërore në klasën e 12-të",
+          "Nota nga 4 deri në 10; nota kaluese është 5",
+          "Pëlqimi i prindit për shërbimet online nën moshën 16 vjeç",
+          "Shqip si parazgjedhje, anglisht sipas dëshirës"
+        ]
+      },
+      "ae": {
+        "name": "Emiratet e Bashkuara Arabe",
+        "items": [
+          "Tre periudha sipas kalendarit të Ministrisë së Arsimit",
+          "Shkallë në përqindje nga 0 deri në 100, si pikënisje",
+          "Pëlqimi i prindit nën moshën 16 vjeç",
+          "Arabisht si parazgjedhje, anglisht sipas dëshirës"
+        ]
+      },
+      "confirm": "Disa cilësime, si datat e semestrave, kufijtë e notave dhe rregullat e pëlqimit, janë pikënisje të hulumtuara, jo ligj i konfirmuar. Çdo shkollë i konfirmon vetë para se të mbështetet tek to.",
+      "pricing": "Abonim për çdo shkollë. Çmimi sipas kërkesës."
+    },
+    "safety": {
+      "title": "Mbrojtja e fëmijëve dhe privatësia, që në themel",
+      "isolation": {
+        "title": "Të dhënat e çdo shkolle ndahen në vetë bazën e të dhënave",
+        "body": "Siguria në nivel rreshti në Postgres i mban të dhënat e një shkolle të padukshme për çdo shkollë tjetër, nën kodin e aplikacionit."
+      },
+      "disclosure": {
+        "title": "Rrëfimet shkojnë te një njeri",
+        "body": "Nëse një nxënës shkruan për vetëlëndim ose abuzim, mesazhi i drejtohet një njeriu pa përfshirë asnjë model AI, edhe kur shkolla e ka fikur AI-në."
+      },
+      "images": {
+        "title": "Asnjë imazh te modeli",
+        "body": "Të dhënat personale hiqen para se çdo tekst të arrijë te një ofrues AI. Ngarkimi i imazheve te tutori është i fikur, sepse ky filtër nuk sheh dot brenda një fotoje."
+      },
+      "budget": {
+        "title": "Shpenzimi i AI-së ka një ndalesë të prerë",
+        "body": "Tutorimi ndalon te kufiri mujor i shkollës, me paralajmërim në 80%. Përkthimet, përmbledhjet dhe shpjegimet e rrezikut kanë fond më vete, që një tutor i ngarkuar të mos i fikë kurrë."
+      }
+    },
+    "footer": {
+      "demo": "Ky është një demo, jo shërbim i gjallë. Punon në kompjuterin e ekipit me dy shkolla fiktive, dhe çdo përgjigje e AI-së vjen nga një zëvendësues testimi, sepse ende nuk është lidhur asnjë ofrues AI."
+    }
   }
 }

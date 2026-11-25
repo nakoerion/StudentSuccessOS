@@ -18,7 +18,8 @@ export async function middleware(request: NextRequest) {
   const session = await updateSession(request, headers);
 
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  // "/" is the public landing page (exact match only; signed-in users are redirected by the page).
+  const isPublic = pathname === "/" || PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   if (!session.authSubject && !isPublic) {
     return redirectWithSession(session, new URL("/sign-in", request.url));
   }
