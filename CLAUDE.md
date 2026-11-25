@@ -7,6 +7,8 @@ Keep this file under ~120 lines. A rule the tooling already enforces (lint, test
 - `pnpm install` · `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm build`
 - DB: `pnpm db:migrate` (as `ssos_owner`) · `pnpm db:seed` · `pnpm rls:generate --name <ts>_rls_<what>`
 - Local Postgres 16: `bash scripts/db-up.sh`; Supabase: `bash scripts/supabase-db-up.sh`.
+- On the team computer, `export npm_config_store_dir=/work/.pnpm-store` before `pnpm install` (/home is 300 MB).
+  Never commit a machine path in `.npmrc` — CI cannot create it.
 
 ## Non-negotiable invariants
 1. **Every tenant table has `tenant_id` and forced RLS generated from the single template** in
