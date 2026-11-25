@@ -83,6 +83,8 @@ test("signed out: / is the public landing page; signed in: / goes to the school"
   await expect(page.getByTestId("landing-join")).toHaveAttribute("href", "/join");
   await expect(page.getByTestId("landing-demo-note")).toBeVisible();
   await signIn(page, "admin.abudhabi@demo.ssos.test");
+  // Let the sign-in action finish (and set the session cookie) before navigating away.
+  await expect(page).toHaveURL(/\/t\/demo-school-abu-dhabi$/);
   await page.goto("/");
   await expect(page).toHaveURL(/\/t\/demo-school-abu-dhabi$/);
 });
