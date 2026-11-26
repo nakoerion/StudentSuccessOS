@@ -92,11 +92,24 @@ async function assignRole(
       if (existing) {
         if (status === "active" && existing.status !== "active") {
           await tx.roleAssignment.update({ where: { id: existing.id }, data: { status: "active" } });
+        } else if (status === "pending" && existing.status === "rejected") {
+          // A refused claim may be made again: it waits for a fresh decision.
+          await tx.roleAssignment.update({
+            where: { id: existing.id },
+            data: { status: "pending", claimedAt: new Date(), decidedAt: null, decisionReason: null },
+          });
         }
         return true;
       }
       await tx.roleAssignment.create({
-        data: { tenantId, personId: person.id, roleId: role.id, status, tenantUnitId: extra.unitId ?? null },
+        data: {
+          tenantId,
+          personId: person.id,
+          roleId: role.id,
+          status,
+          tenantUnitId: extra.unitId ?? null,
+          ...(status === "pending" ? { claimedAt: new Date() } : {}),
+        },
       });
       if (extra.invitationId) {
         await tx.invitation.update({ where: { id: extra.invitationId }, data: { personId: person.id } });

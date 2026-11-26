@@ -7,7 +7,7 @@ import type { PrismaClient } from "@prisma/client";
 
 import { prisma as defaultClient } from "./client";
 
-export type MembershipStatus = "active" | "pending";
+export type MembershipStatus = "active" | "pending" | "rejected";
 
 export interface MembershipRow {
   tenantId: string;

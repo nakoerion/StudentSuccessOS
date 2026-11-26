@@ -157,6 +157,8 @@ export const APP_FUNCTIONS: readonly string[] = [
   "ssos_record_sign_in(uuid)",
   "ssos_tenant_by_join_code(text)",
   "ssos_invitation_by_code(text)",
+  // Tenant-bound (app.tenant_id), not pre-tenant: e-mails of people with a join claim waiting.
+  "ssos_pending_claimant_emails()",
 ];
 
 /** Non-superuser, NOBYPASSRLS role the application connects as. */

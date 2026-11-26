@@ -66,7 +66,11 @@
     "pendingTitle": "Waiting for approval",
     "pendingBody": "Your request to join {school} as {role} has been sent. A school administrator will review it soon.",
     "pendingNext": "You'll get access as soon as it's approved. You can sign out and come back later.",
-    "joinAnother": "Join another school"
+    "joinAnother": "Join another school",
+    "rejectedTitle": "Request not approved",
+    "rejectedBody": "{school} did not approve your request to join as {role}.",
+    "rejectedReason": "Reason given: {reason}",
+    "claimAgain": "Request again"
   },
   "schools": {
     "title": "Choose a school",
@@ -659,5 +663,43 @@
     "footer": {
       "demo": "This is a demo, not a live service. It runs on the team's own computer with two synthetic schools, and every AI answer comes from a test stand-in because no AI provider is connected yet."
     }
+  },
+  "claims": {
+    "title": "Pending claims",
+    "subtitle": "People who asked to join {school} with the join code. Approving gives them access at the role they asked for.",
+    "tab": "Pending claims",
+    "back": "Back to People",
+    "columns": {
+      "person": "Person",
+      "role": "Asked to join as",
+      "claimed": "Asked"
+    },
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectTitle": "Reject {name}'s request?",
+    "reasonLabel": "Reason (optional, shown to {name})",
+    "reasonPlaceholder": "e.g. We could not match you to a student at this school.",
+    "confirmReject": "Reject request",
+    "cancel": "Cancel",
+    "emptyTitle": "No one is waiting to join.",
+    "emptyBody": "New requests made with your school's join code appear here.",
+    "noEmail": "no e-mail on file",
+    "count": "{count, plural, =0 {No one waiting} one {# person waiting} other {# people waiting}}",
+    "toast": {
+      "approved": "{name} approved as {role}.",
+      "rejected": "{name}'s request rejected.",
+      "undo": "Undo",
+      "saveNow": "Save now",
+      "failed": "That decision was not saved: {reason}"
+    },
+    "errors": {
+      "not_found": "this request no longer exists.",
+      "already_decided": "someone already decided this request.",
+      "reason_too_long": "the reason is too long (280 characters at most).",
+      "forbidden": "you can no longer approve requests here.",
+      "invalid_form": "the request was incomplete.",
+      "unexpected": "something went wrong. Try again."
+    },
+    "loading": "Loading pending claims"
   }
 }
