@@ -12,15 +12,16 @@ import {
   TabsNav,
   TabsNavItem,
 } from "@ssos/ui";
-import { Search, SearchX, UserPlus } from "lucide-react";
+import { Search, SearchX, UserCheck, UserPlus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { StatePanel } from "../../../../components/page";
-import { canViewSuccess, rosterScope } from "../../../../lib/access";
-import { listRoster, parseRosterFilter, type RosterFilter } from "../../../../lib/roster";
-import { requireTenant } from "../../../../lib/session";
+import { StatePanel } from "../../../../../components/page";
+import { canViewSuccess, rosterScope } from "../../../../../lib/access";
+import { canApproveClaims, countPendingClaims } from "../../../../../lib/join-claims";
+import { listRoster, parseRosterFilter, type RosterFilter } from "../../../../../lib/roster";
+import { requireTenant } from "../../../../../lib/session";
 
 type Params = Promise<{ tenantSlug: string }>;
 type SearchParams = Promise<{ role?: string; q?: string }>;
@@ -41,6 +42,7 @@ export default async function PeoplePage({ params, searchParams }: { params: Par
   const t = await getTranslations("people");
   const tRoles = await getTranslations("roles");
   const tRel = await getTranslations("relationship");
+  const tClaims = await getTranslations("claims");
 
   const scope = rosterScope(viewer);
   const isParentView = scope.kind === "own_children";
@@ -49,6 +51,7 @@ export default async function PeoplePage({ params, searchParams }: { params: Par
   const q = (sp.q ?? "").slice(0, 100);
   // Server-side: the scope goes into the SQL WHERE; nothing is filtered in the browser.
   const rows = await db((tx) => listRoster(tx, scope, { filter, search: q }));
+  const pendingClaims = canApproveClaims(viewer) ? await db((tx) => countPendingClaims(tx)) : null;
 
   const base = `/t/${tenantSlug}/people`;
   const hrefFor = (role: RosterFilter) => {
@@ -64,11 +67,26 @@ export default async function PeoplePage({ params, searchParams }: { params: Par
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t("title")}</h1>
-        <p className="mt-1 text-muted-foreground">
-          {isParentView ? t("parentSubtitle") : t("subtitle", { school: membership.name })}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t("title")}</h1>
+          <p className="mt-1 text-muted-foreground">
+            {isParentView ? t("parentSubtitle") : t("subtitle", { school: membership.name })}
+          </p>
+        </div>
+        {pendingClaims !== null ? (
+          <Button asChild variant={pendingClaims > 0 ? "default" : "outline"}>
+            <Link href={`${base}/claims`} data-testid="pending-claims-link">
+              <UserCheck className="size-4" aria-hidden />
+              {tClaims("tab")}
+              {pendingClaims > 0 ? (
+                <span className="ms-1 inline-flex min-w-5 items-center justify-center rounded-full bg-brand-foreground px-1.5 text-xs font-semibold text-brand" data-testid="pending-claims-count">
+                  {pendingClaims}
+                </span>
+              ) : null}
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

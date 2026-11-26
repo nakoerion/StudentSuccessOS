@@ -347,8 +347,14 @@ model RoleAssignment {
   tenantUnitId String?   @map("tenant_unit_id") @db.Uuid
   startsAt     DateTime? @map("starts_at") @db.Timestamptz(6)
   endsAt       DateTime? @map("ends_at") @db.Timestamptz(6)
-  /// "active" | "pending" (claimed with a join code, awaiting approval).
-  status       String    @default("active")
+  /// "active" | "pending" (claimed with a join code, awaiting approval) | "rejected" (claim refused).
+  status         String    @default("active")
+  /// When a join-code claim was (re-)made.
+  claimedAt      DateTime? @map("claimed_at") @db.Timestamptz(6)
+  /// When an admin approved or rejected the claim (the actor is on the event row).
+  decidedAt      DateTime? @map("decided_at") @db.Timestamptz(6)
+  /// Optional short reason given with a rejection, shown to the claimant.
+  decisionReason String?   @map("decision_reason")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -361,6 +367,7 @@ model RoleAssignment {
   @@index([tenantId, personId])
   @@index([roleId])
   @@index([tenantId, tenantUnitId])
+  @@index([tenantId, status])
   @@map("role_assignment")
 }
 

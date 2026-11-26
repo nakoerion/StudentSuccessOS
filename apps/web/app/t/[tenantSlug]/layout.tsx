@@ -6,6 +6,7 @@ import { LocaleSwitcher, ThemeToggle } from "../../../components/preferences";
 import { currentTheme } from "../../../components/shell";
 import { SignOutButton } from "../../../components/sign-out-button";
 import { canUseTutor, canViewAiUsage, canViewMastery, canViewSuccess, rosterScope } from "../../../lib/access";
+import { canApproveClaims, countPendingClaims } from "../../../lib/join-claims";
 import { getMemberships, requireTenant } from "../../../lib/session";
 
 /** Country display name from the ISO code, in the viewer's language (data, not a branch). */
@@ -39,6 +40,8 @@ export default async function TenantLayout({
   if (canViewMastery(viewer)) nav.push("mastery");
   if (canUseTutor(viewer)) nav.push("tutor");
   if (canViewAiUsage(viewer)) nav.push("aiUsage");
+  // People carries a count of join claims waiting, for those who can approve them.
+  const pendingClaims = canApproveClaims(viewer) ? await db((tx) => countPendingClaims(tx)) : 0;
 
   return (
     <AppShell
@@ -46,6 +49,7 @@ export default async function TenantLayout({
       school={{ name: membership.name, country: countryName(membership.countryCode, locale) }}
       person={{ name: person?.displayName ?? user.email ?? "", roles: viewer.roles.map((r) => t(`roles.${r}`)) }}
       nav={nav}
+      badges={pendingClaims > 0 ? { people: { count: pendingClaims, label: t("claims.count", { count: pendingClaims }) } } : {}}
       canSwitchSchool={schoolCount > 1}
       controls={
         <>

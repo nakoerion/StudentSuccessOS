@@ -13,6 +13,8 @@ export interface TenantMembership {
   personId: string;
   activeRoles: string[];
   pendingRoles: string[];
+  /** Join-code claims a school admin refused (no access; the person may claim again). */
+  rejectedRoles: string[];
 }
 
 export type Landing =
@@ -36,11 +38,13 @@ export function groupMemberships(rows: readonly MembershipRow[]): TenantMembersh
         personId: r.personId,
         activeRoles: [],
         pendingRoles: [],
+        rejectedRoles: [],
       };
       byTenant.set(r.tenantId, m);
     }
     if (!r.roleKey) continue;
-    const list = r.status === "pending" ? m.pendingRoles : m.activeRoles;
+    // Only an explicit "active" grants access; a rejected claim is listed apart and grants nothing.
+    const list = r.status === "active" ? m.activeRoles : r.status === "pending" ? m.pendingRoles : m.rejectedRoles;
     if (!list.includes(r.roleKey)) list.push(r.roleKey);
   }
   return [...byTenant.values()].sort((a, b) => a.name.localeCompare(b.name));

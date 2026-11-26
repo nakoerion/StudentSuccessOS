@@ -66,7 +66,11 @@
     "pendingTitle": "Në pritje të miratimit",
     "pendingBody": "Kërkesa juaj për t'u bashkuar me {school} si {role} u dërgua. Një administrator i shkollës do ta shqyrtojë së shpejti.",
     "pendingNext": "Do të keni qasje sapo të miratohet. Mund të dilni dhe të ktheheni më vonë.",
-    "joinAnother": "Bashkohuni me një shkollë tjetër"
+    "joinAnother": "Bashkohuni me një shkollë tjetër",
+    "rejectedTitle": "Kërkesa nuk u miratua",
+    "rejectedBody": "{school} nuk e miratoi kërkesën tuaj për t'u bashkuar si {role}.",
+    "rejectedReason": "Arsyeja: {reason}",
+    "claimAgain": "Kërko sërish"
   },
   "schools": {
     "title": "Zgjidhni shkollën",
@@ -659,5 +663,43 @@
     "footer": {
       "demo": "Ky është një demo, jo shërbim i gjallë. Punon në kompjuterin e ekipit me dy shkolla fiktive, dhe çdo përgjigje e AI-së vjen nga një zëvendësues testimi, sepse ende nuk është lidhur asnjë ofrues AI."
     }
+  },
+  "claims": {
+    "title": "Kërkesat në pritje",
+    "subtitle": "Persona që kërkuan të bashkohen me {school} me kodin e shkollës. Miratimi u jep qasje me rolin që kërkuan.",
+    "tab": "Kërkesat në pritje",
+    "back": "Kthehu te Njerëzit",
+    "columns": {
+      "person": "Personi",
+      "role": "Kërkon të bashkohet si",
+      "claimed": "Kërkuar"
+    },
+    "approve": "Mirato",
+    "reject": "Refuzo",
+    "rejectTitle": "Të refuzohet kërkesa e {name}?",
+    "reasonLabel": "Arsyeja (opsionale, i shfaqet {name})",
+    "reasonPlaceholder": "p.sh. Nuk ju gjetëm si nxënës të kësaj shkolle.",
+    "confirmReject": "Refuzo kërkesën",
+    "cancel": "Anulo",
+    "emptyTitle": "Askush nuk është në pritje për t'u bashkuar.",
+    "emptyBody": "Kërkesat e reja me kodin e shkollës shfaqen këtu.",
+    "noEmail": "pa e-mail",
+    "count": "{count, plural, =0 {Askush në pritje} one {# person në pritje} other {# persona në pritje}}",
+    "toast": {
+      "approved": "{name} u miratua si {role}.",
+      "rejected": "Kërkesa e {name} u refuzua.",
+      "undo": "Zhbëj",
+      "saveNow": "Ruaj tani",
+      "failed": "Vendimi nuk u ruajt: {reason}"
+    },
+    "errors": {
+      "not_found": "kjo kërkesë nuk ekziston më.",
+      "already_decided": "dikush tjetër e ka vendosur tashmë këtë kërkesë.",
+      "reason_too_long": "arsyeja është shumë e gjatë (deri në 280 shenja).",
+      "forbidden": "nuk mund të miratoni më kërkesa këtu.",
+      "invalid_form": "kërkesa ishte e paplotë.",
+      "unexpected": "diçka shkoi keq. Provoni sërish."
+    },
+    "loading": "Po ngarkohen kërkesat në pritje"
   }
 }

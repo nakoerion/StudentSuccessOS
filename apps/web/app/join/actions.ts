@@ -28,7 +28,7 @@ export async function claimRoleAction(formData: FormData): Promise<void> {
     code,
     formData.get("role"),
   );
-  if (result.ok) redirect("/join");
+  if (result.ok) redirect("/join?claimed=1");
   redirect(
     result.error === "invalid_role"
       ? `/join?code=${encodeURIComponent(code)}&error=invalid_role`

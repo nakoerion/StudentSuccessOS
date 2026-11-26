@@ -1,4 +1,4 @@
-import { Skeleton } from "../../../../components/page";
+import { Skeleton } from "../../../../../components/page";
 
 /** People skeleton: header, tabs + search, and a table of placeholder rows. */
 export default function PeopleLoading() {

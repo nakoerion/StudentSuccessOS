@@ -46,13 +46,15 @@ export interface AppShellProps {
   person: { name: string; roles: string[] };
   /** Nav items the viewer may open (decided on the server from permission keys). */
   nav: NavKey[];
+  /** Counts shown on nav items (e.g. join claims waiting on People); absent = no badge. */
+  badges?: Partial<Record<NavKey, { count: number; label: string }>>;
   canSwitchSchool: boolean;
   /** Language switcher, theme toggle, sign out (server-rendered client controls). */
   controls: ReactNode;
   children: ReactNode;
 }
 
-export function AppShell({ slug, school, person, nav, canSwitchSchool, controls, children }: AppShellProps) {
+export function AppShell({ slug, school, person, nav, badges = {}, canSwitchSchool, controls, children }: AppShellProps) {
   const t = useTranslations("shell");
   const tNav = useTranslations("nav");
   const pathname = usePathname();
@@ -128,8 +130,25 @@ export function AppShell({ slug, school, person, nav, canSwitchSchool, controls,
               rail && "justify-center px-0",
             )}
           >
-            <Icon className="size-4 shrink-0" aria-hidden />
+            <span className="relative shrink-0">
+              <Icon className="size-4" aria-hidden />
+              {rail && badges[key] ? <span className="absolute -end-1.5 -top-1.5 size-2.5 rounded-full bg-brand ring-2 ring-surface" aria-hidden /> : null}
+            </span>
             {rail ? <span className="sr-only">{label}</span> : <span className="truncate">{label}</span>}
+            {badges[key] ? (
+              rail ? (
+                <span className="sr-only">{badges[key].label}</span>
+              ) : (
+                <span
+                  className="ms-auto inline-flex min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold text-brand-foreground"
+                  title={badges[key].label}
+                  aria-label={badges[key].label}
+                  data-testid={`${TESTID[key]}-badge`}
+                >
+                  {badges[key].count}
+                </span>
+              )
+            ) : null}
           </Link>
         ))}
       </nav>
