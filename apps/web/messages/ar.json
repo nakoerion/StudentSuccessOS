@@ -70,7 +70,11 @@
     "rejectedTitle": "لم تتم الموافقة على الطلب",
     "rejectedBody": "لم توافق {school} على طلبك للانضمام بصفة {role}.",
     "rejectedReason": "السبب: {reason}",
-    "claimAgain": "اطلب مرة أخرى"
+    "claimAgain": "اطلب مرة أخرى",
+    "nameLabel": "اسمك الكامل",
+    "namePlaceholder": "مثال: مريم الحمادي",
+    "nameHint": "سترى {school} هذا الاسم عند مراجعة طلبك.",
+    "nameRequired": "يرجى إدخال اسمك الكامل حتى تعرف المدرسة من يطلب الانضمام."
   },
   "schools": {
     "title": "اختر مدرسة",

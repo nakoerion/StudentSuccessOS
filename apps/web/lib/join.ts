@@ -66,7 +66,7 @@ async function assignRole(
   joiner: Joiner,
   roleKey: string,
   status: "active" | "pending",
-  extra: { unitId?: string | null; invitationId?: string },
+  extra: { unitId?: string | null; invitationId?: string; nameGiven?: boolean },
   client?: PrismaClient,
 ): Promise<boolean> {
   return withTenant(
@@ -82,8 +82,15 @@ async function assignRole(
       }
       const role = await tx.role.findFirst({ where: { key: roleKey, tenantId: null }, select: { id: true } });
       if (!role) return false;
+      const known = await tx.person.findFirst({ where: { userAccountId: joiner.userId }, select: { id: true } });
+      // A name typed on the claim replaces whatever the school held while the claim still waits.
+      const admitted =
+        known && extra.nameGiven
+          ? (await tx.roleAssignment.count({ where: { personId: known.id, status: "active" } })) > 0
+          : true;
+      if (known && !admitted) await tx.person.update({ where: { id: known.id }, data: splitName(joiner) });
       const person =
-        (await tx.person.findFirst({ where: { userAccountId: joiner.userId }, select: { id: true } })) ??
+        known ??
         (await tx.person.create({
           data: { tenantId, userAccountId: joiner.userId, ...splitName(joiner) },
           select: { id: true },
@@ -130,7 +137,7 @@ export async function claimRoleWithJoinCode(
   if (!isClaimableRole(roleKey)) return { ok: false, error: "invalid_role" };
   const found = await lookupCode(rawCode, new Date(), client);
   if (found.kind !== "join") return { ok: false, error: "invalid_code" };
-  const ok = await assignRole(found.tenantId, joiner, roleKey, "pending", {}, client);
+  const ok = await assignRole(found.tenantId, joiner, roleKey, "pending", { nameGiven: Boolean(joiner.name?.trim()) }, client);
   return ok ? { ok: true, slug: found.slug, status: "pending" } : { ok: false, error: "invalid_code" };
 }
 

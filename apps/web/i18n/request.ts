@@ -21,7 +21,9 @@ export async function resolveRequestLocale(): Promise<Locale> {
   const user = await getSessionUser();
   let tenantDefault: string | null = null;
   if (user) {
-    const groups = await getMemberships(user.id);
+    // Only a school the person is inside sets the language: a pending or refused claim must not
+    // switch the "waiting for approval" page away from the language they joined in.
+    const groups = (await getMemberships(user.id)).filter((g) => g.activeRoles.length > 0);
     const slug = tenantSlugFromPath(headerStore.get("x-ssos-pathname"));
     // Tenant in the URL wins; otherwise a user with exactly one school gets its default.
     const current = slug ? groups.find((g) => g.slug === slug) : groups.length === 1 ? groups[0] : undefined;

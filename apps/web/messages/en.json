@@ -70,7 +70,11 @@
     "rejectedTitle": "Request not approved",
     "rejectedBody": "{school} did not approve your request to join as {role}.",
     "rejectedReason": "Reason given: {reason}",
-    "claimAgain": "Request again"
+    "claimAgain": "Request again",
+    "nameLabel": "Your full name",
+    "namePlaceholder": "e.g. Arta Hoxha",
+    "nameHint": "{school} will see this name when they review your request.",
+    "nameRequired": "Please enter your full name so the school knows who is asking."
   },
   "schools": {
     "title": "Choose a school",
