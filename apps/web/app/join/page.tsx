@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const ROLE_ICONS = { student: GraduationCap, parent: Users, teacher: BookOpen } as const;
-const ERRORS = { invalid_code: "invalidCode", code_used: "codeUsed", invalid_role: "invalidRole" } as const;
+const ERRORS = { invalid_code: "invalidCode", code_used: "codeUsed", invalid_role: "invalidRole", name_required: "nameRequired" } as const;
 
 type SearchParams = Promise<{ code?: string; error?: string; another?: string; claimed?: string }>;
 
@@ -67,6 +67,26 @@ export default async function JoinPage({ searchParams }: { searchParams: SearchP
           <form action={claimRoleAction} className="flex flex-col gap-4">
             <input type="hidden" name="code" value={sp.code} />
             {errorKey ? <p role="alert" className="text-sm text-danger">{t(errorKey)}</p> : null}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="name">{t("nameLabel")}</Label>
+              <Input
+                id="name"
+                name="name"
+                dir="auto"
+                autoComplete="name"
+                defaultValue={user.name ?? ""}
+                placeholder={t("namePlaceholder")}
+                minLength={2}
+                maxLength={120}
+                aria-invalid={errorKey === "nameRequired" ? true : undefined}
+                aria-describedby="name-hint"
+                required
+                data-testid="claim-name-input"
+              />
+              <p id="name-hint" className="text-xs text-muted-foreground">
+                {t("nameHint", { school: found.name })}
+              </p>
+            </div>
             <fieldset className="grid gap-2">
               <legend className="sr-only">{t("chooseSubtitle")}</legend>
               {CLAIMABLE_ROLES.map((role, i) => {

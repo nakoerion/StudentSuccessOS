@@ -23,8 +23,12 @@ export async function submitCodeAction(formData: FormData): Promise<void> {
 export async function claimRoleAction(formData: FormData): Promise<void> {
   const user = await requireUser();
   const code = normaliseCode(formData.get("code"));
+  const rawName = formData.get("name");
+  const name = typeof rawName === "string" ? rawName.replace(/\s+/g, " ").trim().slice(0, 120) : "";
+  // The admin approves a person, not an e-mail address: a claim needs a name.
+  if (name.length < 2) redirect(`/join?code=${encodeURIComponent(code)}&error=name_required`);
   const result = await claimRoleWithJoinCode(
-    { userId: user.id, name: user.name, email: user.email },
+    { userId: user.id, name, email: user.email },
     code,
     formData.get("role"),
   );

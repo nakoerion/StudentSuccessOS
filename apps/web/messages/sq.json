@@ -70,7 +70,11 @@
     "rejectedTitle": "Kërkesa nuk u miratua",
     "rejectedBody": "{school} nuk e miratoi kërkesën tuaj për t'u bashkuar si {role}.",
     "rejectedReason": "Arsyeja: {reason}",
-    "claimAgain": "Kërko sërish"
+    "claimAgain": "Kërko sërish",
+    "nameLabel": "Emri dhe mbiemri",
+    "namePlaceholder": "p.sh. Arta Hoxha",
+    "nameHint": "{school} do ta shohë këtë emër kur të shqyrtojë kërkesën tuaj.",
+    "nameRequired": "Ju lutemi shkruani emrin dhe mbiemrin, që shkolla të dijë kush po kërkon."
   },
   "schools": {
     "title": "Zgjidhni shkollën",

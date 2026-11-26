@@ -346,7 +346,8 @@ export async function seed(client: PrismaClient): Promise<void> {
         create: {
           id: seedId("user_account", NO_ROLE_EMAIL),
           email: NO_ROLE_EMAIL,
-          displayName: "New User",
+          // No name on the account: the join flow asks for one, as it would for a real sign-up.
+          displayName: null,
           locale: "en",
         },
         update: {},
