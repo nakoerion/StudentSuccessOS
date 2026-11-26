@@ -36,10 +36,12 @@ export default async function DashboardPage({ params }: { params: Params }) {
     counts: scope.kind === "all" ? await dashboardCounts(tx) : null,
     children: scope.kind === "own_children" ? await listRoster(tx, scope, { filter: "student" }) : [],
     pending: canManage ? await pendingClaimsCount(tx) : 0,
+    // The school's own record of the person (the name given on the claim) before the account's.
+    givenName: (await tx.person.findUnique({ where: { id: viewer.personId }, select: { givenName: true } }))?.givenName,
   }));
   const counts = data.counts;
   const schoolEmpty = counts !== null && counts.students + counts.teachers + counts.parents === 0;
-  const firstName = (user.name ?? user.email).split(" ")[0];
+  const firstName = data.givenName ?? (user.name ?? user.email).split(" ")[0];
 
   return (
     <div className="flex flex-col gap-8">
